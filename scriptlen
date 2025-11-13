@@ -94,7 +94,7 @@ botonOpcion4.Text = "Salto Aire"
 botonOpcion4.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion4.Position = UDim2.new(0.05, 0, 0, 130) 
 
---- AÑADIDO: Botón 5 (Resaltar) ---
+--- CAMBIADO: Botón 5 (Resaltar Nombres) ---
 local botonOpcion5 = Instance.new("TextButton")
 botonOpcion5.Name = "Opcion5"
 botonOpcion5.Parent = menuContent
@@ -102,15 +102,15 @@ botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 botonOpcion5.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion5.Font = Enum.Font.SourceSans
 botonOpcion5.TextSize = 18
-botonOpcion5.Text = "Resaltar"
+botonOpcion5.Text = "Resaltar Nombres"
 botonOpcion5.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion5.Position = UDim2.new(0.05, 0, 0, 170) 
 ----------------------------------
 
---- RENOMBRADO: Botón 6 (Teleport) ---
 local botonOpcion6 = Instance.new("TextButton")
 botonOpcion6.Name = "Opcion6"
 botonOpcion6.Parent = menuContent
+-- (Propiedades...)
 botonOpcion6.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 botonOpcion6.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion6.Font = Enum.Font.SourceSans
@@ -118,12 +118,11 @@ botonOpcion6.TextSize = 18
 botonOpcion6.Text = "Teleport"
 botonOpcion6.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion6.Position = UDim2.new(0.05, 0, 0, 210) 
----------------------------------------------
 
---- RENOMBRADO: Botón 7 (DETENER) ---
 local botonOpcion7 = Instance.new("TextButton")
 botonOpcion7.Name = "Opcion7"
 botonOpcion7.Parent = menuContent
+-- (Propiedades...)
 botonOpcion7.BackgroundColor3 = Color3.fromRGB(170, 40, 40) 
 botonOpcion7.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion7.Font = Enum.Font.SourceSansBold
@@ -131,7 +130,6 @@ botonOpcion7.TextSize = 18
 botonOpcion7.Text = "DETENER SCRIPT"
 botonOpcion7.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion7.Position = UDim2.new(0.05, 0, 0, 250) 
----------------------------------------------
 
 --- Menú de Teleport ---
 local tpMenu = Instance.new("Frame")
@@ -415,8 +413,10 @@ local TIEMPO_ESPERA_AIM = 0.3
 local airJumpActivo = false
 --- AÑADIDO: Estado de Resaltar ---
 local resaltarJugadoresActivo = false
-local conexionResaltarPlayerAdded = nil
-local conexionesResaltarCharAdded = {}
+local conexionResaltar = nil
+local RESALTAR_COOLDOWN = 0.1 -- 10 veces por segundo
+local ultimoResaltado = 0
+local activeEspTags = {} -- Tabla para guardar las etiquetas activas
 ------------------------------------
 
 -- (Lógica de Autoapuntado - Opción 2 - Con control de mirada)
@@ -499,45 +499,53 @@ end
 -----------------------------------------------
 
 --- MODIFICADO: Lógica de Resaltar Nombres (Opción 5) ---
-local function aplicarResaltadoNombre(character, activar)
+local function aplicarResaltadoNombre(character)
 	if not character or not character:FindFirstChild("Head") then return end
 	local head = character:FindFirstChild("Head")
 	
-	local espTag = head:FindFirstChild("NombreResaltado")
-
-	if activar then
-		if not espTag then
-			local billGui = Instance.new("BillboardGui")
-			billGui.Name = "NombreResaltado"
-			billGui.AlwaysOnTop = true 
-			billGui.Size = UDim2.new(0, 200, 0, 50)
-			billGui.StudsOffset = Vector3.new(0, 2.5, 0) 
-			billGui.Adornee = head
-			
-			local textLabel = Instance.new("TextLabel")
-			textLabel.BackgroundTransparency = 1
-			textLabel.Text = character.Name
-			textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-			textLabel.Font = Enum.Font.SourceSansBold
-			textLabel.TextSize = 18
-			textLabel.TextStrokeTransparency = 0 
-			textLabel.Parent = billGui
-			
-			billGui.Parent = head
-		end
-	else
-		if espTag then
-			espTag:Destroy()
-		end
+	if activeEspTags[character] then
+		return -- Ya lo tiene
 	end
+
+	local billGui = Instance.new("BillboardGui")
+	billGui.Name = "NombreResaltado"
+	billGui.AlwaysOnTop = true 
+	billGui.Size = UDim2.new(0, 200, 0, 50)
+	billGui.StudsOffset = Vector3.new(0, 2.5, 0) 
+	billGui.Adornee = head
+	
+	local textLabel = Instance.new("TextLabel")
+	textLabel.BackgroundTransparency = 1
+	textLabel.Text = character.Name
+	textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	textLabel.Font = Enum.Font.SourceSansBold
+	textLabel.TextSize = 18
+	textLabel.TextStrokeTransparency = 0 
+	textLabel.Parent = billGui
+	
+	billGui.Parent = head
+	activeEspTags[character] = billGui -- Guardar la referencia
 end
 
--- Esta función se llamará cuando un personaje aparezca
-local function onCharacterAddedForHighlight(character)
-	if resaltarJugadoresActivo then
-		task.wait(0.1) -- Esperar un breve momento para que la cabeza exista
-		if character and character.Parent then
-			aplicarResaltadoNombre(character, true)
+-- Bucle que revisa a todos constantemente
+local function bucleDeResaltado()
+	local ahora = os.clock()
+	if ahora - ultimoResaltado < RESALTAR_COOLDOWN then return end
+	ultimoResaltado = ahora
+	
+	local jugadoresVivos = {}
+	for _, p in pairs(PlayersService:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 then
+			aplicarResaltadoNombre(p.Character)
+			jugadoresVivos[p.Character] = true
+		end
+	end
+	
+	-- Limpiar cajas de jugadores muertos o que se fueron
+	for char, tag in pairs(activeEspTags) do
+		if not jugadoresVivos[char] then
+			tag:Destroy()
+			activeEspTags[char] = nil
 		end
 	end
 end
@@ -548,47 +556,26 @@ local function enOpcion5Click()
 	if resaltarJugadoresActivo then
 		botonOpcion5.Text = "Resaltar: ON"
 		botonOpcion5.BackgroundColor3 = Color3.fromRGB(60, 140, 70)
+		ultimoResaltado = 0
+		conexionResaltar = RunService.Heartbeat:Connect(bucleDeResaltado)
 
-		-- 1. Conectar para jugadores que se unan *después*
-		conexionResaltarPlayerAdded = PlayersService.PlayerAdded:Connect(function(newPlayer)
-			conexionesResaltarCharAdded[newPlayer] = newPlayer.CharacterAdded:Connect(onCharacterAddedForHighlight)
-		end)
-		table.insert(conexionesActivas, conexionResaltarPlayerAdded)
-
-		-- 2. Conectar y aplicar para jugadores *actuales*
-		for _, p in pairs(PlayersService:GetPlayers()) do
-			if p ~= player then
-				if p.Character then
-					onCharacterAddedForHighlight(p.Character)
-				end
-				-- Conectar para respawns
-				conexionesResaltarCharAdded[p] = p.CharacterAdded:Connect(onCharacterAddedForHighlight)
-				table.insert(conexionesActivas, conexionesResaltarCharAdded[p])
-			end
-		end
-		
 	else
-		botonOpcion5.Text = "Resaltar"
+		botonOpcion5.Text = "Resaltar Nombres"
 		botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 
-		-- 1. Desconectar PlayerAdded
-		if conexionResaltarPlayerAdded then
-			conexionResaltarPlayerAdded:Disconnect()
-			conexionResaltarPlayerAdded = nil
+		-- Detener el bucle
+		if conexionResaltar then
+			conexionResaltar:Disconnect()
+			conexionResaltar = nil
 		end
 		
-		-- 2. Desconectar todos los listeners de CharacterAdded
-		for player, connection in pairs(conexionesResaltarCharAdded) do
-			connection:Disconnect()
-		end
-		conexionesResaltarCharAdded = {}
-		
-		-- 3. Limpiar a todos los jugadores actuales
-		for _, p in pairs(PlayersService:GetPlayers()) do
-			if p.Character then
-				aplicarResaltadoNombre(p.Character, false)
+		-- Limpiar todas las etiquetas
+		for char, tag in pairs(activeEspTags) do
+			if tag then
+				tag:Destroy()
 			end
 		end
+		activeEspTags = {}
 	end
 end
 ------------------------------------------------------
@@ -674,22 +661,17 @@ local function enOpcion7Click()
 	airJumpActivo = false
 	
 	-- Limpiar Resaltado
-	if resaltarJugadoresActivo then
-		resaltarJugadoresActivo = false
-		for _, p in pairs(PlayersService:GetPlayers()) do
-			if p.Character then
-				aplicarResaltadoNombre(p.Character, false)
-			end
+	if conexionResaltar then
+		conexionResaltar:Disconnect()
+		conexionResaltar = nil
+	end
+	resaltarJugadoresActivo = false
+	for char, tag in pairs(activeEspTags) do
+		if tag then
+			tag:Destroy()
 		end
 	end
-	if conexionResaltarPlayerAdded then
-		conexionResaltarPlayerAdded:Disconnect()
-		conexionResaltarPlayerAdded = nil
-	end
-	for player, connection in pairs(conexionesResaltarCharAdded) do
-		connection:Disconnect()
-	end
-	conexionesResaltarCharAdded = {}
+	activeEspTags = {}
 
 	-- Limpiar TP Loop
 	if conexionTpLoop then
