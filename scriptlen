@@ -25,7 +25,8 @@ menuContent.Parent = screenGui
 menuContent.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 menuContent.BorderColor3 = Color3.fromRGB(20, 20, 20)
 menuContent.BorderSizePixel = 2
-menuContent.Size = UDim2.new(0, 200, 0, 250) 
+--- CAMBIADO: Alto para 7 botones ---
+menuContent.Size = UDim2.new(0, 200, 0, 290) 
 menuContent.Position = UDim2.new(0, 10, 0, 50) 
 menuContent.Visible = false 
 menuContent.Draggable = true
@@ -93,7 +94,7 @@ botonOpcion4.Text = "Salto Aire"
 botonOpcion4.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion4.Position = UDim2.new(0.05, 0, 0, 130) 
 
--- NUEVO: Botón para Resaltar Jugadores
+--- AÑADIDO: Botón 5 (Resaltar) ---
 local botonOpcion5 = Instance.new("TextButton")
 botonOpcion5.Name = "Opcion5"
 botonOpcion5.Parent = menuContent
@@ -101,11 +102,12 @@ botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 botonOpcion5.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion5.Font = Enum.Font.SourceSans
 botonOpcion5.TextSize = 18
-botonOpcion5.Text = "Resaltar Jugadores"
+botonOpcion5.Text = "Resaltar"
 botonOpcion5.Size = UDim2.new(0.9, 0, 0, 30)
-botonOpcion5.Position = UDim2.new(0.05, 0, 0, 170) -- Posición ajustada
+botonOpcion5.Position = UDim2.new(0.05, 0, 0, 170) 
+----------------------------------
 
--- Ahora el botón de Teleport es Opcion 6 y su posición es más abajo
+--- RENOMBRADO: Botón 6 (Teleport) ---
 local botonOpcion6 = Instance.new("TextButton")
 botonOpcion6.Name = "Opcion6"
 botonOpcion6.Parent = menuContent
@@ -115,9 +117,10 @@ botonOpcion6.Font = Enum.Font.SourceSans
 botonOpcion6.TextSize = 18
 botonOpcion6.Text = "Teleport"
 botonOpcion6.Size = UDim2.new(0.9, 0, 0, 30)
-botonOpcion6.Position = UDim2.new(0.05, 0, 0, 210) -- Posición ajustada
+botonOpcion6.Position = UDim2.new(0.05, 0, 0, 210) 
+---------------------------------------------
 
--- El botón de DETENER SCRIPT ahora es Opcion 7 y va más abajo aún
+--- RENOMBRADO: Botón 7 (DETENER) ---
 local botonOpcion7 = Instance.new("TextButton")
 botonOpcion7.Name = "Opcion7"
 botonOpcion7.Parent = menuContent
@@ -127,9 +130,8 @@ botonOpcion7.Font = Enum.Font.SourceSansBold
 botonOpcion7.TextSize = 18
 botonOpcion7.Text = "DETENER SCRIPT"
 botonOpcion7.Size = UDim2.new(0.9, 0, 0, 30)
-botonOpcion7.Position = UDim2.new(0.05, 0, 0, 250) -- Posición ajustada
-menuContent.Size = UDim2.new(0, 200, 0, 290) -- Ajustar tamaño del frame para el nuevo botón
-
+botonOpcion7.Position = UDim2.new(0.05, 0, 0, 250) 
+---------------------------------------------
 
 --- Menú de Teleport ---
 local tpMenu = Instance.new("Frame")
@@ -240,16 +242,16 @@ local function bucleDeSeguimiento()
 	local destino = objetivo.HumanoidRootPart.Position
 	local direccion = (destino - origen)
 
-	-- **Múltiples rayos para detectar obstáculos mejor**
+	-- Múltiples rayos para detectar obstáculos mejor
 	local hayObstaculo = false
-	local rayoOffsetAltura = 2 -- Un poco más alto
-	local rayoOffsetPies = -1.5 -- Un poco más bajo (casi a los pies)
-	local distanciaRayoAdicional = 5 -- Distancia extra para detectar obstáculos antes
+	local rayoOffsetAltura = 2 
+	local rayoOffsetPies = -1.5 
+	local distanciaRayoAdicional = 5 
 	
 	local origenesRayos = {
-		origen, -- Rayo central (ya lo teníamos)
-		origen + Vector3.new(0, rayoOffsetAltura, 0), -- Rayo superior
-		origen + Vector3.new(0, rayoOffsetPies, 0), -- Rayo inferior
+		origen, 
+		origen + Vector3.new(0, rayoOffsetAltura, 0), 
+		origen + Vector3.new(0, rayoOffsetPies, 0),
 	}
 
 	for _, rayoOrigen in ipairs(origenesRayos) do
@@ -261,10 +263,8 @@ local function bucleDeSeguimiento()
 	end
 
 	if not hayObstaculo then
-		-- MODO RÁPIDO (Noclip): Ir directo al objetivo
 		humanoid:MoveTo(destino)
 	else
-		-- MODO SEGURO (Pathfinding): Un rayo golpeó una pared
 		local path = PathfindingService:CreatePath()
 		local success, _ = pcall(function()
 			path:ComputeAsync(origen, destino)
@@ -275,10 +275,10 @@ local function bucleDeSeguimiento()
 			if waypoints[2] then
 				humanoid:MoveTo(waypoints[2].Position)
 			else
-				humanoid:MoveTo(destino) -- Failsafe
+				humanoid:MoveTo(destino) 
 			end
 		else
-			humanoid:MoveTo(destino) -- Failsafe
+			humanoid:MoveTo(destino) 
 		end
 	end
 end
@@ -347,18 +347,15 @@ local function bucleDeSeguimientoEquipo()
 	local destino = objetivo.HumanoidRootPart.Position
 	local direccion = (destino - origen)
 
-	-- **Múltiples rayos para detectar obstáculos mejor**
 	local hayObstaculo = false
 	local rayoOffsetAltura = 2 
 	local rayoOffsetPies = -1.5 
 	local distanciaRayoAdicional = 5 
-	
 	local origenesRayos = {
 		origen, 
 		origen + Vector3.new(0, rayoOffsetAltura, 0), 
 		origen + Vector3.new(0, rayoOffsetPies, 0),
 	}
-
 	for _, rayoOrigen in ipairs(origenesRayos) do
 		local resultado = workspace:Raycast(rayoOrigen, direccion.Unit * (direccion.Magnitude + distanciaRayoAdicional), raycastParams)
 		if resultado and not resultado.Instance:IsDescendantOf(objetivo) then
@@ -409,7 +406,7 @@ local function enOpcion3Click()
 end
 
 --=================================================
--- 3. LÓGICA DE OPCIÓN 2, 4, 5 (NUEVO RESALTAR) Y 6 (TELEPORT)
+-- 3. LÓGICA DE OPCIÓN 2, 4, 5 Y 6
 --=================================================
 
 local camera = workspace.CurrentCamera
@@ -418,7 +415,9 @@ local autoAimActivo = false
 local tiempoSinMoverse = 0
 local TIEMPO_ESPERA_AIM = 0.3 
 local airJumpActivo = false
+--- AÑADIDO: Estado de Resaltar ---
 local resaltarJugadoresActivo = false
+---------------------------------
 
 -- (Lógica de Autoapuntado - Opción 2 - Con control de mirada)
 local function bucleDeAutoapuntado(deltaTime)
@@ -499,74 +498,48 @@ local function enOpcion4Click()
 end
 -----------------------------------------------
 
---- NUEVO: Lógica de Resaltar Jugadores (Opción 5) ---
-local function actualizarResaltadoJugadores()
-	for _, p in pairs(PlayersService:GetPlayers()) do
-		if p ~= player then
-			local char = p.Character
-			if char then
-				for _, child in pairs(char:GetChildren()) do
-					if child:IsA("BasePart") then
-						if resaltarJugadoresActivo then
-							local highlight = child:FindFirstChild("PlayerHighlight")
-							if not highlight then
-								highlight = Instance.new("Highlight")
-								highlight.Name = "PlayerHighlight"
-								highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- Blanco
-								highlight.FillTransparency = 0.5 -- Un poco transparente
-								highlight.Parent = child
-							end
-						else
-							local highlight = child:FindFirstChild("PlayerHighlight")
-							if highlight then
-								highlight:Destroy()
-							end
-						end
-					end
+--- AÑADIDO: Lógica de Resaltar Jugadores (Opción 5) ---
+local function aplicarResaltado(character, activar)
+	if not character then return end
+	for _, child in pairs(character:GetChildren()) do
+		if child:IsA("BasePart") then
+			local highlight = child:FindFirstChild("PlayerHighlight")
+			if activar then
+				if not highlight then
+					highlight = Instance.new("Highlight")
+					highlight.Name = "PlayerHighlight"
+					highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- Blanco
+					highlight.FillTransparency = 0.5 -- 50% transparente
+					highlight.Parent = child
+				end
+			else
+				if highlight then
+					highlight:Destroy()
 				end
 			end
 		end
 	end
 end
 
-local function enOpcion5ClickResaltar() -- Nuevo nombre de función
+local function enOpcion5Click()
 	resaltarJugadoresActivo = not resaltarJugadoresActivo
+	
 	if resaltarJugadoresActivo then
-		botonOpcion5.Text = "Resaltar Jugadores: ON"
+		botonOpcion5.Text = "Resaltar: ON"
 		botonOpcion5.BackgroundColor3 = Color3.fromRGB(60, 140, 70)
 	else
-		botonOpcion5.Text = "Resaltar Jugadores"
+		botonOpcion5.Text = "Resaltar"
 		botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 	end
-	actualizarResaltadoJugadores() -- Aplicar/quitar el resaltado inmediatamente
-
-	-- También necesitamos un listener para nuevos jugadores o respawns
-	if resaltarJugadoresActivo then
-		conexionesActivas["PlayerAdded_Resaltar"] = PlayersService.PlayerAdded:Connect(function(newPlayer)
-			newPlayer.CharacterAdded:Connect(function(newChar)
-				task.wait(0.1) -- Esperar un momento para que carguen las partes
-				if resaltarJugadoresActivo then
-					for _, child in pairs(newChar:GetChildren()) do
-						if child:IsA("BasePart") then
-							local highlight = Instance.new("Highlight")
-							highlight.Name = "PlayerHighlight"
-							highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-							highlight.FillTransparency = 0.5
-							highlight.Parent = child
-						end
-					end
-				end
-			end)
-		end)
-	else
-		if conexionesActivas["PlayerAdded_Resaltar"] then
-			conexionesActivas["PlayerAdded_Resaltar"]:Disconnect()
-			conexionesActivas["PlayerAdded_Resaltar"] = nil
+	
+	-- Aplicar/Quitar a todos los jugadores actuales
+	for _, p in pairs(PlayersService:GetPlayers()) do
+		if p ~= player then
+			aplicarResaltado(p.Character, resaltarJugadoresActivo)
 		end
 	end
 end
 ------------------------------------------------------
-
 
 --- Lógica de Teleport (Opción 6) ---
 local tpLoopActive = false
@@ -623,7 +596,7 @@ local function onTpLoopButtonClick()
 end
 
 -- Botón del menú principal para mostrar/ocultar el menú de TP
-local function enOpcion6ClickTeleport() -- Nuevo nombre de función
+local function enOpcion6Click()
 	if tpMenu then
 		tpMenu.Visible = not tpMenu.Visible
 	end
@@ -631,7 +604,7 @@ end
 --------------------------------------------------
 
 --- Lógica Opción 7 (DETENER SCRIPT) ---
-local function enOpcion7Click() -- Nuevo nombre de función
+local function enOpcion7Click()
 	detenerAutoapuntado()
 	
 	estaSiguiendo = false
@@ -647,24 +620,22 @@ local function enOpcion7Click() -- Nuevo nombre de función
 	
 	airJumpActivo = false
 	
-	-- Limpiar resaltado
-	resaltarJugadoresActivo = false
-	actualizarResaltadoJugadores() -- Asegurarse de quitar todos los resaltados
-	if conexionesActivas["PlayerAdded_Resaltar"] then
-		conexionesActivas["PlayerAdded_Resaltar"]:Disconnect()
-		conexionesActivas["PlayerAdded_Resaltar"] = nil
+	-- Limpiar Resaltado
+	if resaltarJugadoresActivo then
+		resaltarJugadoresActivo = false
+		for _, p in pairs(PlayersService:GetPlayers()) do
+			aplicarResaltado(p.Character, false)
+		end
 	end
-
+	
 	-- Limpiar TP Loop
 	if conexionTpLoop then
 		conexionTpLoop:Disconnect()
 		conexionTpLoop = nil
 	end
 	
-	for _, con in pairs(conexionesActivas) do -- Usar pairs en vez de ipairs para tabla con keys de string
-		if type(con) == "table" and con.Connected then -- Asegurarse de que sea una conexión y esté conectada
-			con:Disconnect()
-		end
+	for _, con in ipairs(conexionesActivas) do
+		con:Disconnect()
 	end
 	conexionesActivas = {} 
 	
@@ -697,6 +668,50 @@ table.insert(conexionesActivas, botonOpcion1.MouseButton1Click:Connect(enOpcion1
 table.insert(conexionesActivas, botonOpcion2.MouseButton1Click:Connect(enOpcion2Click))
 table.insert(conexionesActivas, botonOpcion3.MouseButton1Click:Connect(enOpcion3Click))
 table.insert(conexionesActivas, botonOpcion4.MouseButton1Click:Connect(enOpcion4Click))
-table.insert(conexionesActivas, botonOpcion5.MouseButton1Click:Connect(enOpcion5ClickResaltar)) -- Conectar nuevo botón
-table.insert(conexionesActivas, botonOpcion6.MouseButton1Click:Connect(enOpcion6ClickTeleport)) -- Conectar botón de Teleport
-table.insert(conexionesActivas, botonOpcion7.MouseButton1Click:Connect(enOpcion7Click)) -- Conectar botón de
+table.insert(conexionesActivas, botonOpcion5.MouseButton1Click:Connect(enOpcion5Click))
+table.insert(conexionesActivas, botonOpcion6.MouseButton1Click:Connect(enOpcion6Click))
+table.insert(conexionesActivas, botonOpcion7.MouseButton1Click:Connect(enOpcion7Click))
+
+table.insert(conexionesActivas, menuContent:GetPropertyChangedSignal("Position"):Connect(function()
+	local newMenuPos = menuContent.Position
+	toggleButton.Position = UDim2.new(
+		newMenuPos.X.Scale, newMenuPos.X.Offset, 
+		newMenuPos.Y.Scale, newMenuPos.Y.Offset - 40 
+	)
+end))
+
+table.insert(conexionesActivas, UserInputService.InputChanged:Connect(reiniciarTemporizadorDePausa))
+table.insert(conexionesActivas, UserInputService.JumpRequest:Connect(onJumpRequest))
+
+--- Conectar botones del menú de TP ---
+table.insert(conexionesActivas, tpButton.MouseButton1Click:Connect(onTpButtonClick))
+table.insert(conexionesActivas, tpLoopButton.MouseButton1Click:Connect(onTpLoopButtonClick))
+---------------------------------------------
+
+--- AÑADIDO: Conectar lógica de Resaltado a eventos de Jugador ---
+local function onCharacterAdded(character)
+	-- Actualizar filtro de rayo
+	raycastParams.FilterDescendantsInstances = {character}
+	
+	-- Aplicar resaltado si está activo
+	if resaltarJugadoresActivo then
+		task.wait(0.5) -- Esperar a que carguen las partes
+		if character and character.Parent then
+			aplicarResaltado(character, true)
+		end
+	end
+end
+
+-- Conectar para jugadores que se unan *después*
+table.insert(conexionesActivas, PlayersService.PlayerAdded:Connect(function(newPlayer)
+	table.insert(conexionesActivas, newPlayer.CharacterAdded:Connect(onCharacterAdded))
+end))
+
+-- Conectar para jugadores *ya existentes* (y nuestro propio personaje)
+for _, p in pairs(PlayersService:GetPlayers()) do
+	table.insert(conexionesActivas, p.CharacterAdded:Connect(onCharacterAdded))
+	if p.Character then
+		onCharacterAdded(p.Character) -- Correr para los que ya están
+	end
+end
+--------------------------------------------------------------
