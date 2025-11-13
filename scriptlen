@@ -1,0 +1,702 @@
+-- Espera a que el jugador y su GUI estén listos
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Servicios
+local RunService = game:GetService("RunService")
+local PlayersService = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local PathfindingService = game:GetService("PathfindingService")
+
+local conexionesActivas = {}
+
+--=================================================
+-- 1. CREAR LOS OBJETOS DE LA GUI
+--=================================================
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MenuScripted"
+screenGui.ResetOnSpawn = false 
+screenGui.Parent = playerGui
+
+local menuContent = Instance.new("Frame")
+menuContent.Name = "MenuContent"
+menuContent.Parent = screenGui
+menuContent.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+menuContent.BorderColor3 = Color3.fromRGB(20, 20, 20)
+menuContent.BorderSizePixel = 2
+menuContent.Size = UDim2.new(0, 200, 0, 250) 
+menuContent.Position = UDim2.new(0, 10, 0, 50) 
+menuContent.Visible = false 
+menuContent.Draggable = true
+menuContent.Active = true 
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"
+toggleButton.Parent = screenGui
+-- (Propiedades de toggleButton...)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 110, 255)
+toggleButton.BorderColor3 = Color3.fromRGB(20, 20, 20)
+toggleButton.BorderSizePixel = 2
+toggleButton.Size = UDim2.new(0, 80, 0, 30)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
+toggleButton.Text = "Menú"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.TextSize = 18
+
+local botonOpcion1 = Instance.new("TextButton")
+botonOpcion1.Name = "Opcion1"
+botonOpcion1.Parent = menuContent
+-- (Propiedades...)
+botonOpcion1.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+botonOpcion1.TextColor3 = Color3.fromRGB(255, 255, 255)
+botonOpcion1.Font = Enum.Font.SourceSans
+botonOpcion1.TextSize = 18
+botonOpcion1.Text = "Seguir Jugador" 
+botonOpcion1.Size = UDim2.new(0.9, 0, 0, 30) 
+botonOpcion1.Position = UDim2.new(0.05, 0, 0, 10) 
+
+local botonOpcion2 = Instance.new("TextButton")
+botonOpcion2.Name = "Opcion2"
+botonOpcion2.Parent = menuContent
+-- (Propiedades...)
+botonOpcion2.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+botonOpcion2.TextColor3 = Color3.fromRGB(255, 255, 255)
+botonOpcion2.Font = Enum.Font.SourceSans
+botonOpcion2.TextSize = 18
+botonOpcion2.Text = "Autoapuntado: OFF"
+botonOpcion2.Size = UDim2.new(0.9, 0, 0, 30)
+botonOpcion2.Position = UDim2.new(0.05, 0, 0, 50) 
+
+local botonOpcion3 = Instance.new("TextButton")
+botonOpcion3.Name = "Opcion3"
+botonOpcion3.Parent = menuContent
+-- (Propiedades...)
+botonOpcion3.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+botonOpcion3.TextColor3 = Color3.fromRGB(255, 255, 255)
+botonOpcion3.Font = Enum.Font.SourceSans
+botonOpcion3.TextSize = 18
+botonOpcion3.Text = "Seguir (Player)"
+botonOpcion3.Size = UDim2.new(0.9, 0, 0, 30)
+botonOpcion3.Position = UDim2.new(0.05, 0, 0, 90)
+
+local botonOpcion4 = Instance.new("TextButton")
+botonOpcion4.Name = "Opcion4"
+botonOpcion4.Parent = menuContent
+-- (Propiedades...)
+botonOpcion4.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+botonOpcion4.TextColor3 = Color3.fromRGB(255, 255, 255)
+botonOpcion4.Font = Enum.Font.SourceSans
+botonOpcion4.TextSize = 18
+botonOpcion4.Text = "Salto Aire"
+botonOpcion4.Size = UDim2.new(0.9, 0, 0, 30)
+botonOpcion4.Position = UDim2.new(0.05, 0, 0, 130) 
+
+-- NUEVO: Botón para Resaltar Jugadores
+local botonOpcion5 = Instance.new("TextButton")
+botonOpcion5.Name = "Opcion5"
+botonOpcion5.Parent = menuContent
+botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+botonOpcion5.TextColor3 = Color3.fromRGB(255, 255, 255)
+botonOpcion5.Font = Enum.Font.SourceSans
+botonOpcion5.TextSize = 18
+botonOpcion5.Text = "Resaltar Jugadores"
+botonOpcion5.Size = UDim2.new(0.9, 0, 0, 30)
+botonOpcion5.Position = UDim2.new(0.05, 0, 0, 170) -- Posición ajustada
+
+-- Ahora el botón de Teleport es Opcion 6 y su posición es más abajo
+local botonOpcion6 = Instance.new("TextButton")
+botonOpcion6.Name = "Opcion6"
+botonOpcion6.Parent = menuContent
+botonOpcion6.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+botonOpcion6.TextColor3 = Color3.fromRGB(255, 255, 255)
+botonOpcion6.Font = Enum.Font.SourceSans
+botonOpcion6.TextSize = 18
+botonOpcion6.Text = "Teleport"
+botonOpcion6.Size = UDim2.new(0.9, 0, 0, 30)
+botonOpcion6.Position = UDim2.new(0.05, 0, 0, 210) -- Posición ajustada
+
+-- El botón de DETENER SCRIPT ahora es Opcion 7 y va más abajo aún
+local botonOpcion7 = Instance.new("TextButton")
+botonOpcion7.Name = "Opcion7"
+botonOpcion7.Parent = menuContent
+botonOpcion7.BackgroundColor3 = Color3.fromRGB(170, 40, 40) 
+botonOpcion7.TextColor3 = Color3.fromRGB(255, 255, 255)
+botonOpcion7.Font = Enum.Font.SourceSansBold
+botonOpcion7.TextSize = 18
+botonOpcion7.Text = "DETENER SCRIPT"
+botonOpcion7.Size = UDim2.new(0.9, 0, 0, 30)
+botonOpcion7.Position = UDim2.new(0.05, 0, 0, 250) -- Posición ajustada
+menuContent.Size = UDim2.new(0, 200, 0, 290) -- Ajustar tamaño del frame para el nuevo botón
+
+
+--- Menú de Teleport ---
+local tpMenu = Instance.new("Frame")
+tpMenu.Name = "TeleportMenu"
+tpMenu.Parent = screenGui
+tpMenu.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+tpMenu.BorderColor3 = Color3.fromRGB(20, 20, 20)
+tpMenu.BorderSizePixel = 2
+tpMenu.Size = UDim2.new(0, 250, 0, 100)
+tpMenu.Position = UDim2.new(0.5, -125, 0.5, -50) 
+tpMenu.Visible = false
+tpMenu.Draggable = true
+tpMenu.Active = true
+
+local playerNameBox = Instance.new("TextBox")
+playerNameBox.Name = "PlayerNameBox"
+playerNameBox.Parent = tpMenu
+playerNameBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+playerNameBox.TextColor3 = Color3.fromRGB(0, 0, 0)
+playerNameBox.Text = "Escribe un nombre..."
+playerNameBox.PlaceholderText = "Nombre del jugador"
+playerNameBox.TextSize = 16
+playerNameBox.Font = Enum.Font.SourceSans
+playerNameBox.Size = UDim2.new(0.9, 0, 0, 30)
+playerNameBox.Position = UDim2.new(0.05, 0, 0, 10)
+
+local tpButton = Instance.new("TextButton")
+tpButton.Name = "TPButton"
+tpButton.Parent = tpMenu
+tpButton.BackgroundColor3 = Color3.fromRGB(0, 110, 255)
+tpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpButton.Text = "Teletransportar"
+tpButton.TextSize = 16
+tpButton.Font = Enum.Font.SourceSansBold
+tpButton.Size = UDim2.new(0.425, 0, 0, 40)
+tpButton.Position = UDim2.new(0.05, 0, 0, 50)
+
+local tpLoopButton = Instance.new("TextButton")
+tpLoopButton.Name = "TPLoopButton"
+tpLoopButton.Parent = tpMenu
+tpLoopButton.BackgroundColor3 = Color3.fromRGB(0, 110, 255)
+tpLoopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpLoopButton.Text = "Loop TP"
+tpLoopButton.TextSize = 16
+tpLoopButton.Font = Enum.Font.SourceSansBold
+tpLoopButton.Size = UDim2.new(0.425, 0, 0, 40)
+tpLoopButton.Position = UDim2.new(0.525, 0, 0, 50)
+------------------------------------
+
+--=================================================
+-- 2. LÓGICA DEL MENÚ Y SEGUIMIENTO (OPCIÓN 1 y 3)
+--=================================================
+
+local menuEstaVisible = false
+local function onToggleClick()
+	menuEstaVisible = not menuEstaVisible
+	menuContent.Visible = menuEstaVisible
+	if menuEstaVisible then toggleButton.Text = "Cerrar" else toggleButton.Text = "Menú" end
+end
+
+--- Parámetros del Rayo ---
+local raycastParams = RaycastParams.new()
+raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+raycastParams.FilterDescendantsInstances = {player.Character}
+----------------------------------
+local estaSiguiendo = false
+local estaSiguiendoEquipo = false
+local conexionDeSeguimiento = nil
+local conexionSeguimientoEquipo = nil
+
+-- --- Lógica Opción 1 (Seguir a Todos) ---
+local function encontrarJugadorMasCercano()
+	local jugadorLocalChar = player.Character
+	if not jugadorLocalChar or not jugadorLocalChar:FindFirstChild("HumanoidRootPart") then return nil end
+	local raizLocal = jugadorLocalChar.HumanoidRootPart
+	local distanciaMinima = math.huge
+	local objetivo = nil
+	for _, otroJugador in pairs(PlayersService:GetPlayers()) do
+		if otroJugador ~= player then
+			local otroChar = otroJugador.Character
+			if otroChar and otroChar:FindFirstChild("HumanoidRootPart") and otroChar.Humanoid.Health > 0 then
+				local raizObjetivo = otroChar.HumanoidRootPart
+				local distancia = (raizLocal.Position - raizObjetivo.Position).Magnitude
+				if distancia < distanciaMinima then
+					distanciaMinima = distancia
+					objetivo = otroChar
+				end
+			end
+		end
+	end
+	return objetivo
+end
+
+--- MODIFICADO: Bucle de seguimiento (Híbrido) ---
+local function bucleDeSeguimiento()
+	local char = player.Character
+	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+	local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not rootPart then return end
+
+	local objetivo = encontrarJugadorMasCercano()
+	if not objetivo or not objetivo:FindFirstChild("HumanoidRootPart") then
+		humanoid:MoveTo(rootPart.Position) -- Detenerse
+		return
+	end
+	
+	local origen = rootPart.Position
+	local destino = objetivo.HumanoidRootPart.Position
+	local direccion = (destino - origen)
+
+	-- **Múltiples rayos para detectar obstáculos mejor**
+	local hayObstaculo = false
+	local rayoOffsetAltura = 2 -- Un poco más alto
+	local rayoOffsetPies = -1.5 -- Un poco más bajo (casi a los pies)
+	local distanciaRayoAdicional = 5 -- Distancia extra para detectar obstáculos antes
+	
+	local origenesRayos = {
+		origen, -- Rayo central (ya lo teníamos)
+		origen + Vector3.new(0, rayoOffsetAltura, 0), -- Rayo superior
+		origen + Vector3.new(0, rayoOffsetPies, 0), -- Rayo inferior
+	}
+
+	for _, rayoOrigen in ipairs(origenesRayos) do
+		local resultado = workspace:Raycast(rayoOrigen, direccion.Unit * (direccion.Magnitude + distanciaRayoAdicional), raycastParams)
+		if resultado and not resultado.Instance:IsDescendantOf(objetivo) then
+			hayObstaculo = true
+			break
+		end
+	end
+
+	if not hayObstaculo then
+		-- MODO RÁPIDO (Noclip): Ir directo al objetivo
+		humanoid:MoveTo(destino)
+	else
+		-- MODO SEGURO (Pathfinding): Un rayo golpeó una pared
+		local path = PathfindingService:CreatePath()
+		local success, _ = pcall(function()
+			path:ComputeAsync(origen, destino)
+		end)
+		
+		if success and path.Status == Enum.PathStatus.Success then
+			local waypoints = path:GetWaypoints()
+			if waypoints[2] then
+				humanoid:MoveTo(waypoints[2].Position)
+			else
+				humanoid:MoveTo(destino) -- Failsafe
+			end
+		else
+			humanoid:MoveTo(destino) -- Failsafe
+		end
+	end
+end
+
+local function enOpcion1Click()
+	estaSiguiendo = not estaSiguiendo
+	if estaSiguiendo then
+		botonOpcion1.Text = "Seguir Jugador: ON"
+		botonOpcion1.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+		conexionDeSeguimiento = RunService.Heartbeat:Connect(bucleDeSeguimiento)
+	else
+		botonOpcion1.Text = "Seguir Jugador"
+		botonOpcion1.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+		if conexionDeSeguimiento then
+			conexionDeSeguimiento:Disconnect()
+			conexionDeSeguimiento = nil
+		end
+		local personajeLocal = player.Character
+		local humanoideLocal = personajeLocal and personajeLocal:FindFirstChildOfClass("Humanoid")
+		if humanoideLocal then
+			humanoideLocal:MoveTo(personajeLocal.HumanoidRootPart.Position)
+		end
+	end
+end
+
+-- --- Lógica Opción 3 (Seguir Equipo "Player") ---
+local function encontrarJugadorMasCercanoEnEquipoPlayer()
+	local jugadorLocalChar = player.Character
+	if not jugadorLocalChar or not jugadorLocalChar:FindFirstChild("HumanoidRootPart") then return nil end
+	local raizLocal = jugadorLocalChar.HumanoidRootPart
+	local distanciaMinima = math.huge
+	local objetivo = nil
+	for _, otroJugador in pairs(PlayersService:GetPlayers()) do
+		if otroJugador ~= player then
+			local equipo = otroJugador.Team
+			if equipo and (equipo.Name == "Player" or equipo.Name == "Jugador") then
+				local otroChar = otroJugador.Character
+				if otroChar and otroChar:FindFirstChild("HumanoidRootPart") and otroChar.Humanoid.Health > 0 then
+					local raizObjetivo = otroChar.HumanoidRootPart
+					local distancia = (raizLocal.Position - raizObjetivo.Position).Magnitude
+					if distancia < distanciaMinima then
+						distanciaMinima = distancia
+						objetivo = otroChar
+					end
+				end
+			end
+		end
+	end
+	return objetivo
+end
+
+--- MODIFICADO: Bucle de seguimiento de equipo (Híbrido) ---
+local function bucleDeSeguimientoEquipo()
+	local char = player.Character
+	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+	local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not rootPart then return end
+
+	local objetivo = encontrarJugadorMasCercanoEnEquipoPlayer() 
+	if not objetivo or not objetivo:FindFirstChild("HumanoidRootPart") then
+		humanoid:MoveTo(rootPart.Position) -- Detenerse
+		return
+	end
+	
+	local origen = rootPart.Position
+	local destino = objetivo.HumanoidRootPart.Position
+	local direccion = (destino - origen)
+
+	-- **Múltiples rayos para detectar obstáculos mejor**
+	local hayObstaculo = false
+	local rayoOffsetAltura = 2 
+	local rayoOffsetPies = -1.5 
+	local distanciaRayoAdicional = 5 
+	
+	local origenesRayos = {
+		origen, 
+		origen + Vector3.new(0, rayoOffsetAltura, 0), 
+		origen + Vector3.new(0, rayoOffsetPies, 0),
+	}
+
+	for _, rayoOrigen in ipairs(origenesRayos) do
+		local resultado = workspace:Raycast(rayoOrigen, direccion.Unit * (direccion.Magnitude + distanciaRayoAdicional), raycastParams)
+		if resultado and not resultado.Instance:IsDescendantOf(objetivo) then
+			hayObstaculo = true
+			break
+		end
+	end
+
+	if not hayObstaculo then
+		humanoid:MoveTo(destino)
+	else
+		local path = PathfindingService:CreatePath()
+		local success, _ = pcall(function()
+			path:ComputeAsync(origen, destino)
+		end)
+		
+		if success and path.Status == Enum.PathStatus.Success then
+			local waypoints = path:GetWaypoints()
+			if waypoints[2] then
+				humanoid:MoveTo(waypoints[2].Position)
+			else
+				humanoid:MoveTo(destino)
+			end
+		else
+			humanoid:MoveTo(destino)
+		end
+	end
+end
+local function enOpcion3Click()
+	estaSiguiendoEquipo = not estaSiguiendoEquipo
+	if estaSiguiendoEquipo then
+		botonOpcion3.Text = "Seguir (Player): ON"
+		botonOpcion3.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+		conexionSeguimientoEquipo = RunService.Heartbeat:Connect(bucleDeSeguimientoEquipo)
+	else
+		botonOpcion3.Text = "Seguir (Player)"
+		botonOpcion3.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+		if conexionSeguimientoEquipo then
+			conexionSeguimientoEquipo:Disconnect()
+			conexionSeguimientoEquipo = nil
+		end
+		local personajeLocal = player.Character
+		local humanoideLocal = personajeLocal and personajeLocal:FindFirstChildOfClass("Humanoid")
+		if humanoideLocal then
+			humanoideLocal:MoveTo(personajeLocal.HumanoidRootPart.Position)
+		end
+	end
+end
+
+--=================================================
+-- 3. LÓGICA DE OPCIÓN 2, 4, 5 (NUEVO RESALTAR) Y 6 (TELEPORT)
+--=================================================
+
+local camera = workspace.CurrentCamera
+local conexionDeAutoapuntado = nil
+local autoAimActivo = false 
+local tiempoSinMoverse = 0
+local TIEMPO_ESPERA_AIM = 0.3 
+local airJumpActivo = false
+local resaltarJugadoresActivo = false
+
+-- (Lógica de Autoapuntado - Opción 2 - Con control de mirada)
+local function bucleDeAutoapuntado(deltaTime)
+	if not camera then 
+		camera = workspace.CurrentCamera 
+		if not camera then return end
+	end
+	local personaje = player.Character
+	local herramientaEquipada = personaje and personaje:FindFirstChildOfClass("Tool")
+	if not herramientaEquipada then
+		tiempoSinMoverse = 0 
+		return 
+	end
+	tiempoSinMoverse = tiempoSinMoverse + deltaTime
+	if tiempoSinMoverse < TIEMPO_ESPERA_AIM then
+		return
+	end
+	local objetivo = encontrarJugadorMasCercano()
+	if objetivo and objetivo:FindFirstChild("Head") then
+		local posCamara = camera.CFrame.Position
+		local posObjetivo = objetivo.Head.Position
+		camera.CFrame = CFrame.lookAt(posCamara, posObjetivo)
+	end
+end
+local function iniciarAutoapuntado()
+	if not conexionDeAutoapuntado then
+		tiempoSinMoverse = 0 
+		conexionDeAutoapuntado = RunService.RenderStepped:Connect(bucleDeAutoapuntado)
+	end
+end
+local function detenerAutoapuntado()
+	if conexionDeAutoapuntado then
+		conexionDeAutoapuntado:Disconnect()
+		conexionDeAutoapuntado = nil
+	end
+	tiempoSinMoverse = 0 
+end
+local function enOpcion2Click()
+	autoAimActivo = not autoAimActivo
+	if autoAimActivo then
+		iniciarAutoapuntado()
+		botonOpcion2.Text = "Autoapuntado: ON"
+		botonOpcion2.BackgroundColor3 = Color3.fromRGB(60, 140, 70)
+	else
+		detenerAutoapuntado()
+		botonOpcion2.Text = "Autoapuntado: OFF"
+		botonOpcion2.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+	end
+end
+local function reiniciarTemporizadorDePausa(inputObject)
+	if not autoAimActivo then return end
+	if inputObject.UserInputType == Enum.UserInputType.MouseMovement or
+	   inputObject.UserInputType == Enum.UserInputType.Touch or
+	   inputObject.UserInputType == Enum.UserInputType.Gamepad2 then
+		tiempoSinMoverse = 0
+	end
+end
+
+-- --- Lógica de Salto en el Aire (Opción 4) ---
+local function onJumpRequest()
+	if not airJumpActivo then return end
+	local char = player.Character
+	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+	local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+	if humanoid and rootPart and humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+		rootPart.Velocity = Vector3.new(rootPart.Velocity.X, humanoid.JumpPower, rootPart.Velocity.Z)
+	end
+end
+local function enOpcion4Click()
+	airJumpActivo = not airJumpActivo
+	if airJumpActivo then
+		botonOpcion4.Text = "Salto Aire: ON"
+		botonOpcion4.BackgroundColor3 = Color3.fromRGB(60, 140, 70)
+	else
+		botonOpcion4.Text = "Salto Aire"
+		botonOpcion4.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+	end
+end
+-----------------------------------------------
+
+--- NUEVO: Lógica de Resaltar Jugadores (Opción 5) ---
+local function actualizarResaltadoJugadores()
+	for _, p in pairs(PlayersService:GetPlayers()) do
+		if p ~= player then
+			local char = p.Character
+			if char then
+				for _, child in pairs(char:GetChildren()) do
+					if child:IsA("BasePart") then
+						if resaltarJugadoresActivo then
+							local highlight = child:FindFirstChild("PlayerHighlight")
+							if not highlight then
+								highlight = Instance.new("Highlight")
+								highlight.Name = "PlayerHighlight"
+								highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- Blanco
+								highlight.FillTransparency = 0.5 -- Un poco transparente
+								highlight.Parent = child
+							end
+						else
+							local highlight = child:FindFirstChild("PlayerHighlight")
+							if highlight then
+								highlight:Destroy()
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+local function enOpcion5ClickResaltar() -- Nuevo nombre de función
+	resaltarJugadoresActivo = not resaltarJugadoresActivo
+	if resaltarJugadoresActivo then
+		botonOpcion5.Text = "Resaltar Jugadores: ON"
+		botonOpcion5.BackgroundColor3 = Color3.fromRGB(60, 140, 70)
+	else
+		botonOpcion5.Text = "Resaltar Jugadores"
+		botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+	end
+	actualizarResaltadoJugadores() -- Aplicar/quitar el resaltado inmediatamente
+
+	-- También necesitamos un listener para nuevos jugadores o respawns
+	if resaltarJugadoresActivo then
+		conexionesActivas["PlayerAdded_Resaltar"] = PlayersService.PlayerAdded:Connect(function(newPlayer)
+			newPlayer.CharacterAdded:Connect(function(newChar)
+				task.wait(0.1) -- Esperar un momento para que carguen las partes
+				if resaltarJugadoresActivo then
+					for _, child in pairs(newChar:GetChildren()) do
+						if child:IsA("BasePart") then
+							local highlight = Instance.new("Highlight")
+							highlight.Name = "PlayerHighlight"
+							highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+							highlight.FillTransparency = 0.5
+							highlight.Parent = child
+						end
+					end
+				end
+			end)
+		end)
+	else
+		if conexionesActivas["PlayerAdded_Resaltar"] then
+			conexionesActivas["PlayerAdded_Resaltar"]:Disconnect()
+			conexionesActivas["PlayerAdded_Resaltar"] = nil
+		end
+	end
+end
+------------------------------------------------------
+
+
+--- Lógica de Teleport (Opción 6) ---
+local tpLoopActive = false
+local conexionTpLoop = nil
+
+-- Función para encontrar un jugador por nombre (parcial y sin mayúsculas)
+local function findPlayerByName(name)
+	local nameLower = name:lower()
+	for _, p in pairs(PlayersService:GetPlayers()) do
+		if p ~= player then
+			if p.Name:lower():sub(1, #nameLower) == nameLower then
+				return p.Character
+			end
+		end
+	end
+	return nil
+end
+
+-- Bucle para el TP Loop
+local function bucleTpLoop()
+	local targetChar = findPlayerByName(playerNameBox.Text)
+	local char = player.Character
+	if targetChar and char and char:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
+		char.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame
+	end
+end
+
+-- Botón de TP (una vez)
+local function onTpButtonClick()
+	local targetChar = findPlayerByName(playerNameBox.Text)
+	local char = player.Character
+	if targetChar and char and char:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
+		char.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame
+	end
+end
+
+-- Botón de TP (Loop)
+local function onTpLoopButtonClick()
+	tpLoopActive = not tpLoopActive
+	if tpLoopActive then
+		-- Activar loop
+		conexionTpLoop = RunService.Heartbeat:Connect(bucleTpLoop)
+		tpLoopButton.Text = "Loop: ON"
+		tpLoopButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	else
+		-- Desactivar loop
+		if conexionTpLoop then
+			conexionTpLoop:Disconnect()
+			conexionTpLoop = nil
+		end
+		tpLoopButton.Text = "Loop TP"
+		tpLoopButton.BackgroundColor3 = Color3.fromRGB(0, 110, 255)
+	end
+end
+
+-- Botón del menú principal para mostrar/ocultar el menú de TP
+local function enOpcion6ClickTeleport() -- Nuevo nombre de función
+	if tpMenu then
+		tpMenu.Visible = not tpMenu.Visible
+	end
+end
+--------------------------------------------------
+
+--- Lógica Opción 7 (DETENER SCRIPT) ---
+local function enOpcion7Click() -- Nuevo nombre de función
+	detenerAutoapuntado()
+	
+	estaSiguiendo = false
+	estaSiguiendoEquipo = false
+	if conexionDeSeguimiento then
+		conexionDeSeguimiento:Disconnect()
+		conexionDeSeguimiento = nil
+	end
+	if conexionSeguimientoEquipo then
+		conexionSeguimientoEquipo:Disconnect()
+		conexionSeguimientoEquipo = nil
+	end
+	
+	airJumpActivo = false
+	
+	-- Limpiar resaltado
+	resaltarJugadoresActivo = false
+	actualizarResaltadoJugadores() -- Asegurarse de quitar todos los resaltados
+	if conexionesActivas["PlayerAdded_Resaltar"] then
+		conexionesActivas["PlayerAdded_Resaltar"]:Disconnect()
+		conexionesActivas["PlayerAdded_Resaltar"] = nil
+	end
+
+	-- Limpiar TP Loop
+	if conexionTpLoop then
+		conexionTpLoop:Disconnect()
+		conexionTpLoop = nil
+	end
+	
+	for _, con in pairs(conexionesActivas) do -- Usar pairs en vez de ipairs para tabla con keys de string
+		if type(con) == "table" and con.Connected then -- Asegurarse de que sea una conexión y esté conectada
+			con:Disconnect()
+		end
+	end
+	conexionesActivas = {} 
+	
+	if screenGui then
+		screenGui:Destroy()
+	end
+	
+	screenGui = nil
+	menuContent = nil
+	toggleButton = nil
+	botonOpcion1 = nil
+	botonOpcion2 = nil
+	botonOpcion3 = nil
+	botonOpcion4 = nil
+	botonOpcion5 = nil
+	botonOpcion6 = nil 
+	botonOpcion7 = nil
+	tpMenu = nil 
+	playerNameBox = nil
+	tpButton = nil
+	tpLoopButton = nil
+end
+
+--=================================================
+-- 4. CONECTAR TODOS LOS EVENTOS
+--=================================================
+
+table.insert(conexionesActivas, toggleButton.MouseButton1Click:Connect(onToggleClick))
+table.insert(conexionesActivas, botonOpcion1.MouseButton1Click:Connect(enOpcion1Click))
+table.insert(conexionesActivas, botonOpcion2.MouseButton1Click:Connect(enOpcion2Click))
+table.insert(conexionesActivas, botonOpcion3.MouseButton1Click:Connect(enOpcion3Click))
+table.insert(conexionesActivas, botonOpcion4.MouseButton1Click:Connect(enOpcion4Click))
+table.insert(conexionesActivas, botonOpcion5.MouseButton1Click:Connect(enOpcion5ClickResaltar)) -- Conectar nuevo botón
+table.insert(conexionesActivas, botonOpcion6.MouseButton1Click:Connect(enOpcion6ClickTeleport)) -- Conectar botón de Teleport
+table.insert(conexionesActivas, botonOpcion7.MouseButton1Click:Connect(enOpcion7Click)) -- Conectar botón de
