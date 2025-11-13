@@ -13,7 +13,6 @@ local conexionesActivas = {}
 --=================================================
 -- 1. CREAR LOS OBJETOS DE LA GUI
 --=================================================
--- (Esta sección no tiene cambios)
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MenuScripted"
@@ -230,12 +229,6 @@ local function bucleDeSeguimiento()
 	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
 	local rootPart = char and char:FindFirstChild("HumanoidRootPart")
 	if not humanoid or not rootPart then return end
-	
-	--- AÑADIDO: Comprobar si el jugador se está moviendo ---
-	if humanoid.MoveDirection.Magnitude > 0.1 then
-		return -- El jugador tiene el control, no hacer nada
-	end
-	----------------------------------------------------
 
 	local objetivo = encontrarJugadorMasCercano()
 	if not objetivo or not objetivo:FindFirstChild("HumanoidRootPart") then
@@ -338,12 +331,6 @@ local function bucleDeSeguimientoEquipo()
 	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
 	local rootPart = char and char:FindFirstChild("HumanoidRootPart")
 	if not humanoid or not rootPart then return end
-	
-	--- AÑADIDO: Comprobar si el jugador se está moviendo ---
-	if humanoid.MoveDirection.Magnitude > 0.1 then
-		return -- El jugador tiene el control, no hacer nada
-	end
-	----------------------------------------------------
 
 	local objetivo = encontrarJugadorMasCercanoEnEquipoPlayer() 
 	if not objetivo or not objetivo:FindFirstChild("HumanoidRootPart") then
@@ -605,8 +592,10 @@ local function enOpcion5Click()
 		
 		-- Desconectar todas las conexiones de CharacterAdded/Removing
 		for player, connections in pairs(characterConnections) do
-			connections.Added:Disconnect()
-			connections.Removing:Disconnect()
+			if connections then -- Comprobación de seguridad
+				connections.Added:Disconnect()
+				connections.Removing:Disconnect()
+			end
 		end
 		characterConnections = {}
 
@@ -629,9 +618,13 @@ local conexionTpLoop = nil
 -- Función para encontrar un jugador por nombre (parcial y sin mayúsculas)
 local function findPlayerByName(name)
 	local nameLower = name:lower()
+	if nameLower == "" or nameLower == "escribe un nombre..." then
+		return nil -- No buscar si está vacío o es el placeholder
+	end
 	for _, p in pairs(PlayersService:GetPlayers()) do
 		if p ~= player then
-			if p.Name:lower():sub(1, #nameLower) == nameLower then
+			-- Usar string.find para encontrar el texto en cualquier parte del nombre
+			if string.find(p.Name:lower(), nameLower, 1, true) then
 				return p.Character
 			end
 		end
@@ -712,8 +705,10 @@ local function enOpcion7Click()
 		connectionPlayerRemoving = nil
 	end
 	for player, connections in pairs(characterConnections) do
-		connections.Added:Disconnect()
-		connections.Removing:Disconnect()
+		if connections then -- Comprobación de seguridad
+			connections.Added:Disconnect()
+			connections.Removing:Disconnect()
+		end
 	end
 	characterConnections = {}
 	for char, highlight in pairs(highlightObjects) do
