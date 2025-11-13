@@ -13,7 +13,6 @@ local conexionesActivas = {}
 --=================================================
 -- 1. CREAR LOS OBJETOS DE LA GUI
 --=================================================
--- (Esta sección no tiene cambios)
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MenuScripted"
@@ -26,6 +25,7 @@ menuContent.Parent = screenGui
 menuContent.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 menuContent.BorderColor3 = Color3.fromRGB(20, 20, 20)
 menuContent.BorderSizePixel = 2
+--- CAMBIADO: Alto para 7 botones ---
 menuContent.Size = UDim2.new(0, 200, 0, 290) 
 menuContent.Position = UDim2.new(0, 10, 0, 50) 
 menuContent.Visible = false 
@@ -102,7 +102,7 @@ botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 botonOpcion5.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion5.Font = Enum.Font.SourceSans
 botonOpcion5.TextSize = 18
-botonOpcion5.Text = "Resaltar"
+botonOpcion5.Text = "Resaltar Nombres"
 botonOpcion5.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion5.Position = UDim2.new(0.05, 0, 0, 170) 
 
@@ -495,50 +495,47 @@ local function enOpcion4Click()
 end
 -----------------------------------------------
 
---- MODIFICADO: Lógica de Resaltar Jugadores (Opción 5) ---
--- Esta función aplica/quita el resaltado a UNA parte
-local function aplicarResaltado(part, activar)
-	if not part or not part:IsA("BasePart") then return end
+--- MODIFICADO: Lógica de Resaltar Nombres (Opción 5) ---
+local function aplicarResaltadoNombre(character, activar)
+	if not character or not character:FindFirstChild("Head") then return end
+	local head = character:FindFirstChild("Head")
 	
-	local highlight = part:FindFirstChild("PlayerHighlight")
+	local espTag = head:FindFirstChild("NombreResaltado")
+
 	if activar then
-		if not highlight then
-			highlight = Instance.new("Highlight")
-			highlight.Name = "PlayerHighlight"
-			highlight.OutlineColor = Color3.fromRGB(255, 255, 255) 
-			highlight.FillTransparency = 0.5 
-			highlight.Parent = part
+		if not espTag then
+			local billGui = Instance.new("BillboardGui")
+			billGui.Name = "NombreResaltado"
+			billGui.AlwaysOnTop = true -- *** LA CLAVE PARA VER A TRAVÉS DE PAREDES ***
+			billGui.Size = UDim2.new(0, 200, 0, 50)
+			billGui.StudsOffset = Vector3.new(0, 2.5, 0) -- Ponerlo sobre la cabeza
+			billGui.Adornee = head
+			
+			local textLabel = Instance.new("TextLabel")
+			textLabel.BackgroundTransparency = 1
+			textLabel.Text = character.Name
+			textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			textLabel.Font = Enum.Font.SourceSansBold
+			textLabel.TextSize = 18
+			textLabel.TextStrokeTransparency = 0 -- Borde negro
+			textLabel.Parent = billGui
+			
+			billGui.Parent = head
 		end
 	else
-		if highlight then
-			highlight:Destroy()
+		if espTag then
+			espTag:Destroy()
 		end
 	end
 end
 
--- Esta función se llama CADA VEZ que un personaje aparece
+-- Esta función se llamará cuando un personaje aparezca
 local function onCharacterAddedForHighlight(character)
-	-- Aplicar a todas las partes que YA existen
-	for _, descendant in pairs(character:GetDescendants()) do
-		aplicarResaltado(descendant, true)
-	end
-	
-	-- Escuchar por partes que se añaden DESPUÉS (como accesorios o partes que tardan en cargar)
-	local conn = character.DescendantAdded:Connect(function(descendant)
-		if resaltarJugadoresActivo then
-			aplicarResaltado(descendant, true)
+	if resaltarJugadoresActivo then
+		task.wait(0.1) -- Esperar un breve momento para que la cabeza exista
+		if character and character.Parent then
+			aplicarResaltadoNombre(character, true)
 		end
-	end)
-	-- Guardar esta conexión para poder limpiarla después
-	conexionesResaltarCharAdded[character] = conn
-end
-
--- Esta función se llama CADA VEZ que un personaje se va
-local function onCharacterRemovingForHighlight(character)
-	-- Limpiar la conexión de 'DescendantAdded'
-	if conexionesResaltarCharAdded[character] then
-		conexionesResaltarCharAdded[character]:Disconnect()
-		conexionesResaltarCharAdded[character] = nil
 	end
 end
 
@@ -551,24 +548,19 @@ local function enOpcion5Click()
 
 		-- 1. Conectar para jugadores que se unan *después*
 		conexionResaltarPlayerAdded = PlayersService.PlayerAdded:Connect(function(newPlayer)
-			-- Escuchar cuando su personaje aparece
 			conexionesResaltarCharAdded[newPlayer] = newPlayer.CharacterAdded:Connect(onCharacterAddedForHighlight)
-			-- Escuchar cuando su personaje se va
-			table.insert(conexionesActivas, newPlayer.CharacterRemoving:Connect(onCharacterRemovingForHighlight))
 		end)
 		table.insert(conexionesActivas, conexionResaltarPlayerAdded)
 
 		-- 2. Conectar y aplicar para jugadores *actuales*
 		for _, p in pairs(PlayersService:GetPlayers()) do
 			if p ~= player then
-				-- Aplicar al personaje actual
 				if p.Character then
 					onCharacterAddedForHighlight(p.Character)
 				end
 				-- Conectar para respawns
 				conexionesResaltarCharAdded[p] = p.CharacterAdded:Connect(onCharacterAddedForHighlight)
 				table.insert(conexionesActivas, conexionesResaltarCharAdded[p])
-				table.insert(conexionesActivas, p.CharacterRemoving:Connect(onCharacterRemovingForHighlight))
 			end
 		end
 		
@@ -582,7 +574,7 @@ local function enOpcion5Click()
 			conexionResaltarPlayerAdded = nil
 		end
 		
-		-- 2. Desconectar todos los listeners de CharacterAdded/Removing
+		-- 2. Desconectar todos los listeners de CharacterAdded
 		for player, connection in pairs(conexionesResaltarCharAdded) do
 			connection:Disconnect()
 		end
@@ -591,14 +583,13 @@ local function enOpcion5Click()
 		-- 3. Limpiar a todos los jugadores actuales
 		for _, p in pairs(PlayersService:GetPlayers()) do
 			if p.Character then
-				for _, descendant in pairs(p.Character:GetDescendants()) do
-					aplicarResaltado(descendant, false)
-				end
+				aplicarResaltadoNombre(p.Character, false)
 			end
 		end
 	end
 end
 ------------------------------------------------------
+
 
 --- Lógica de Teleport (Opción 6) ---
 local tpLoopActive = false
@@ -684,9 +675,7 @@ local function enOpcion7Click()
 		resaltarJugadoresActivo = false
 		for _, p in pairs(PlayersService:GetPlayers()) do
 			if p.Character then
-				for _, descendant in pairs(p.Character:GetDescendants()) do
-					aplicarResaltado(descendant, false)
-				end
+				aplicarResaltadoNombre(p.Character, false)
 			end
 		end
 	end
