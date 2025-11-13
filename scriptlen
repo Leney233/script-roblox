@@ -13,6 +13,7 @@ local conexionesActivas = {}
 --=================================================
 -- 1. CREAR LOS OBJETOS DE LA GUI
 --=================================================
+-- (Esta sección no tiene cambios)
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MenuScripted"
@@ -25,7 +26,6 @@ menuContent.Parent = screenGui
 menuContent.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 menuContent.BorderColor3 = Color3.fromRGB(20, 20, 20)
 menuContent.BorderSizePixel = 2
---- CAMBIADO: Alto para 7 botones ---
 menuContent.Size = UDim2.new(0, 200, 0, 290) 
 menuContent.Position = UDim2.new(0, 10, 0, 50) 
 menuContent.Visible = false 
@@ -94,10 +94,10 @@ botonOpcion4.Text = "Salto Aire"
 botonOpcion4.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion4.Position = UDim2.new(0.05, 0, 0, 130) 
 
---- AÑADIDO: Botón 5 (Resaltar) ---
 local botonOpcion5 = Instance.new("TextButton")
 botonOpcion5.Name = "Opcion5"
 botonOpcion5.Parent = menuContent
+-- (Propiedades...)
 botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 botonOpcion5.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion5.Font = Enum.Font.SourceSans
@@ -105,12 +105,11 @@ botonOpcion5.TextSize = 18
 botonOpcion5.Text = "Resaltar"
 botonOpcion5.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion5.Position = UDim2.new(0.05, 0, 0, 170) 
-----------------------------------
 
---- RENOMBRADO: Botón 6 (Teleport) ---
 local botonOpcion6 = Instance.new("TextButton")
 botonOpcion6.Name = "Opcion6"
 botonOpcion6.Parent = menuContent
+-- (Propiedades...)
 botonOpcion6.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 botonOpcion6.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion6.Font = Enum.Font.SourceSans
@@ -118,12 +117,11 @@ botonOpcion6.TextSize = 18
 botonOpcion6.Text = "Teleport"
 botonOpcion6.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion6.Position = UDim2.new(0.05, 0, 0, 210) 
----------------------------------------------
 
---- RENOMBRADO: Botón 7 (DETENER) ---
 local botonOpcion7 = Instance.new("TextButton")
 botonOpcion7.Name = "Opcion7"
 botonOpcion7.Parent = menuContent
+-- (Propiedades...)
 botonOpcion7.BackgroundColor3 = Color3.fromRGB(170, 40, 40) 
 botonOpcion7.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion7.Font = Enum.Font.SourceSansBold
@@ -131,7 +129,6 @@ botonOpcion7.TextSize = 18
 botonOpcion7.Text = "DETENER SCRIPT"
 botonOpcion7.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion7.Position = UDim2.new(0.05, 0, 0, 250) 
----------------------------------------------
 
 --- Menú de Teleport ---
 local tpMenu = Instance.new("Frame")
@@ -184,7 +181,6 @@ tpLoopButton.Position = UDim2.new(0.525, 0, 0, 50)
 --=================================================
 -- 2. LÓGICA DEL MENÚ Y SEGUIMIENTO (OPCIÓN 1 y 3)
 --=================================================
--- (Esta sección no tiene cambios)
 
 local menuEstaVisible = false
 local function onToggleClick()
@@ -500,35 +496,49 @@ end
 -----------------------------------------------
 
 --- MODIFICADO: Lógica de Resaltar Jugadores (Opción 5) ---
-local function aplicarResaltado(character, activar)
-	if not character then return end
-	for _, child in pairs(character:GetDescendants()) do -- Usar GetDescendants para asegurar todas las partes
-		if child:IsA("BasePart") then
-			local highlight = child:FindFirstChild("PlayerHighlight")
-			if activar then
-				if not highlight then
-					highlight = Instance.new("Highlight")
-					highlight.Name = "PlayerHighlight"
-					highlight.OutlineColor = Color3.fromRGB(255, 255, 255) 
-					highlight.FillTransparency = 0.5 
-					highlight.Parent = child
-				end
-			else
-				if highlight then
-					highlight:Destroy()
-				end
-			end
+-- Esta función aplica/quita el resaltado a UNA parte
+local function aplicarResaltado(part, activar)
+	if not part or not part:IsA("BasePart") then return end
+	
+	local highlight = part:FindFirstChild("PlayerHighlight")
+	if activar then
+		if not highlight then
+			highlight = Instance.new("Highlight")
+			highlight.Name = "PlayerHighlight"
+			highlight.OutlineColor = Color3.fromRGB(255, 255, 255) 
+			highlight.FillTransparency = 0.5 
+			highlight.Parent = part
+		end
+	else
+		if highlight then
+			highlight:Destroy()
 		end
 	end
 end
 
--- Esta función se llamará cuando un personaje aparezca
+-- Esta función se llama CADA VEZ que un personaje aparece
 local function onCharacterAddedForHighlight(character)
-	if resaltarJugadoresActivo then
-		task.wait(0.5) -- Esperar a que carguen las partes
-		if character and character.Parent then
-			aplicarResaltado(character, true)
+	-- Aplicar a todas las partes que YA existen
+	for _, descendant in pairs(character:GetDescendants()) do
+		aplicarResaltado(descendant, true)
+	end
+	
+	-- Escuchar por partes que se añaden DESPUÉS (como accesorios o partes que tardan en cargar)
+	local conn = character.DescendantAdded:Connect(function(descendant)
+		if resaltarJugadoresActivo then
+			aplicarResaltado(descendant, true)
 		end
+	end)
+	-- Guardar esta conexión para poder limpiarla después
+	conexionesResaltarCharAdded[character] = conn
+end
+
+-- Esta función se llama CADA VEZ que un personaje se va
+local function onCharacterRemovingForHighlight(character)
+	-- Limpiar la conexión de 'DescendantAdded'
+	if conexionesResaltarCharAdded[character] then
+		conexionesResaltarCharAdded[character]:Disconnect()
+		conexionesResaltarCharAdded[character] = nil
 	end
 end
 
@@ -541,17 +551,24 @@ local function enOpcion5Click()
 
 		-- 1. Conectar para jugadores que se unan *después*
 		conexionResaltarPlayerAdded = PlayersService.PlayerAdded:Connect(function(newPlayer)
+			-- Escuchar cuando su personaje aparece
 			conexionesResaltarCharAdded[newPlayer] = newPlayer.CharacterAdded:Connect(onCharacterAddedForHighlight)
+			-- Escuchar cuando su personaje se va
+			table.insert(conexionesActivas, newPlayer.CharacterRemoving:Connect(onCharacterRemovingForHighlight))
 		end)
 		table.insert(conexionesActivas, conexionResaltarPlayerAdded)
 
 		-- 2. Conectar y aplicar para jugadores *actuales*
 		for _, p in pairs(PlayersService:GetPlayers()) do
 			if p ~= player then
-				aplicarResaltado(p.Character, true)
+				-- Aplicar al personaje actual
+				if p.Character then
+					onCharacterAddedForHighlight(p.Character)
+				end
 				-- Conectar para respawns
 				conexionesResaltarCharAdded[p] = p.CharacterAdded:Connect(onCharacterAddedForHighlight)
 				table.insert(conexionesActivas, conexionesResaltarCharAdded[p])
+				table.insert(conexionesActivas, p.CharacterRemoving:Connect(onCharacterRemovingForHighlight))
 			end
 		end
 		
@@ -565,7 +582,7 @@ local function enOpcion5Click()
 			conexionResaltarPlayerAdded = nil
 		end
 		
-		-- 2. Desconectar y limpiar CharacterAdded
+		-- 2. Desconectar todos los listeners de CharacterAdded/Removing
 		for player, connection in pairs(conexionesResaltarCharAdded) do
 			connection:Disconnect()
 		end
@@ -573,12 +590,15 @@ local function enOpcion5Click()
 		
 		-- 3. Limpiar a todos los jugadores actuales
 		for _, p in pairs(PlayersService:GetPlayers()) do
-			aplicarResaltado(p.Character, false)
+			if p.Character then
+				for _, descendant in pairs(p.Character:GetDescendants()) do
+					aplicarResaltado(descendant, false)
+				end
+			end
 		end
 	end
 end
 ------------------------------------------------------
-
 
 --- Lógica de Teleport (Opción 6) ---
 local tpLoopActive = false
@@ -663,7 +683,11 @@ local function enOpcion7Click()
 	if resaltarJugadoresActivo then
 		resaltarJugadoresActivo = false
 		for _, p in pairs(PlayersService:GetPlayers()) do
-			aplicarResaltado(p.Character, false)
+			if p.Character then
+				for _, descendant in pairs(p.Character:GetDescendants()) do
+					aplicarResaltado(descendant, false)
+				end
+			end
 		end
 	end
 	if conexionResaltarPlayerAdded then
