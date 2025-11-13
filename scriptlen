@@ -543,7 +543,8 @@ local function bucleDeResaltado()
 	
 	-- Limpiar cajas de jugadores muertos o que se fueron
 	for char, tag in pairs(activeEspTags) do
-		if not jugadoresVivos[char] then
+		-- Comprobar si el jugador sigue vivo O si la etiqueta (o su padre) fueron destruidos
+		if not jugadoresVivos[char] or not tag.Parent or not tag.Adornee then
 			tag:Destroy()
 			activeEspTags[char] = nil
 		end
