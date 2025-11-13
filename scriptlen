@@ -25,8 +25,10 @@ menuContent.Parent = screenGui
 menuContent.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 menuContent.BorderColor3 = Color3.fromRGB(20, 20, 20)
 menuContent.BorderSizePixel = 2
---- CAMBIADO: Alto para 7 botones ---
-menuContent.Size = UDim2.new(0, 200, 0, 290) 
+--- CAMBIADO: Más fino y semitransparente ---
+menuContent.Size = UDim2.new(0, 180, 0, 290) -- Ancho reducido a 180
+menuContent.BackgroundTransparency = 0.3 -- Añadida transparencia
+-------------------------------------------
 menuContent.Position = UDim2.new(0, 10, 0, 50) 
 menuContent.Visible = false 
 menuContent.Draggable = true
@@ -35,8 +37,10 @@ menuContent.Active = true
 local toggleButton = Instance.new("TextButton")
 toggleButton.Name = "ToggleButton"
 toggleButton.Parent = screenGui
--- (Propiedades de toggleButton...)
-toggleButton.BackgroundColor3 = Color3.fromRGB(0, 110, 255)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+--- AÑADIDO: Transparencia al botón principal ---
+toggleButton.BackgroundTransparency = 0.3
+---------------------------------------------
 toggleButton.BorderColor3 = Color3.fromRGB(20, 20, 20)
 toggleButton.BorderSizePixel = 2
 toggleButton.Size = UDim2.new(0, 80, 0, 30)
@@ -94,18 +98,17 @@ botonOpcion4.Text = "Salto Aire"
 botonOpcion4.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion4.Position = UDim2.new(0.05, 0, 0, 130) 
 
---- CAMBIADO: Botón 5 (Resaltar Nombres) ---
 local botonOpcion5 = Instance.new("TextButton")
 botonOpcion5.Name = "Opcion5"
 botonOpcion5.Parent = menuContent
+-- (Propiedades...)
 botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 botonOpcion5.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion5.Font = Enum.Font.SourceSans
 botonOpcion5.TextSize = 18
-botonOpcion5.Text = "Resaltar Nombres"
+botonOpcion5.Text = "Resaltar: OFF"
 botonOpcion5.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion5.Position = UDim2.new(0.05, 0, 0, 170) 
-----------------------------------
 
 local botonOpcion6 = Instance.new("TextButton")
 botonOpcion6.Name = "Opcion6"
@@ -138,8 +141,9 @@ tpMenu.Parent = screenGui
 tpMenu.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 tpMenu.BorderColor3 = Color3.fromRGB(20, 20, 20)
 tpMenu.BorderSizePixel = 2
-tpMenu.Size = UDim2.new(0, 250, 0, 100)
-tpMenu.Position = UDim2.new(0.5, -125, 0.5, -50) 
+tpMenu.Size = UDim2.new(0, 200, 0, 100) 
+tpMenu.Position = UDim2.new(0.5, -100, 0.5, -50) 
+tpMenu.BackgroundTransparency = 0.3 
 tpMenu.Visible = false
 tpMenu.Draggable = true
 tpMenu.Active = true
@@ -411,13 +415,13 @@ local autoAimActivo = false
 local tiempoSinMoverse = 0
 local TIEMPO_ESPERA_AIM = 0.3 
 local airJumpActivo = false
---- AÑADIDO: Estado de Resaltar ---
-local resaltarJugadoresActivo = false
-local conexionResaltar = nil
-local RESALTAR_COOLDOWN = 0.1 -- 10 veces por segundo
-local ultimoResaltado = 0
-local activeEspTags = {} -- Tabla para guardar las etiquetas activas
-------------------------------------
+--- AÑADIDO: Estado y lógica de Resaltado de Aura ---
+local resaltarActivo = false
+local highlightObjects = {} -- Guarda los objetos Highlight para limpiarlos
+local connectionPlayerAdded = nil
+local connectionPlayerRemoving = nil
+local characterConnections = {} -- Para guardar las conexiones .CharacterAdded
+------------------------------------------------------
 
 -- (Lógica de Autoapuntado - Opción 2 - Con control de mirada)
 local function bucleDeAutoapuntado(deltaTime)
@@ -498,85 +502,113 @@ local function enOpcion4Click()
 end
 -----------------------------------------------
 
---- MODIFICADO: Lógica de Resaltar Nombres (Opción 5) ---
-local function aplicarResaltadoNombre(character)
-	if not character or not character:FindFirstChild("Head") then return end
-	local head = character:FindFirstChild("Head")
+--- MODIFICADO: Lógica de Resaltado de Aura (Opción 5) ---
+local function crearHighlight(targetCharacter)
+	if not targetCharacter or not targetCharacter:IsA("Model") then return end
 	
-	if activeEspTags[character] then
-		return -- Ya lo tiene
-	end
-
-	local billGui = Instance.new("BillboardGui")
-	billGui.Name = "NombreResaltado"
-	billGui.AlwaysOnTop = true 
-	billGui.Size = UDim2.new(0, 200, 0, 50)
-	billGui.StudsOffset = Vector3.new(0, 2.5, 0) 
-	billGui.Adornee = head
-	
-	local textLabel = Instance.new("TextLabel")
-	textLabel.BackgroundTransparency = 1
-	textLabel.Text = character.Name
-	textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	textLabel.Font = Enum.Font.SourceSansBold
-	textLabel.TextSize = 18
-	textLabel.TextStrokeTransparency = 0 
-	textLabel.Parent = billGui
-	
-	billGui.Parent = head
-	activeEspTags[character] = billGui -- Guardar la referencia
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "PlayerHighlight"
+	highlight.FillTransparency = 0.5
+	highlight.OutlineTransparency = 0
+	highlight.FillColor = Color3.fromRGB(255, 255, 255) -- Blanco
+	highlight.OutlineColor = Color3.fromRGB(200, 200, 200)
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- Para que se vea a través de las paredes
+	highlight.Adornee = targetCharacter
+	highlight.Parent = targetCharacter
+	highlightObjects[targetCharacter] = highlight -- Guarda la referencia
 end
 
--- Bucle que revisa a todos constantemente
-local function bucleDeResaltado()
-	local ahora = os.clock()
-	if ahora - ultimoResaltado < RESALTAR_COOLDOWN then return end
-	ultimoResaltado = ahora
-	
-	local jugadoresVivos = {}
-	for _, p in pairs(PlayersService:GetPlayers()) do
-		if p ~= player and p.Character and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 then
-			aplicarResaltadoNombre(p.Character)
-			jugadoresVivos[p.Character] = true
+local function eliminarHighlight(targetCharacter)
+	if highlightObjects[targetCharacter] then
+		highlightObjects[targetCharacter]:Destroy()
+		highlightObjects[targetCharacter] = nil
+	end
+end
+
+local function onPlayerAdded(newPlayer)
+	if newPlayer == player then return end -- No resaltar al propio jugador
+
+	local function onCharacterAdded(character)
+		if resaltarActivo then
+			crearHighlight(character)
 		end
 	end
 	
-	-- Limpiar cajas de jugadores muertos o que se fueron
-	for char, tag in pairs(activeEspTags) do
-		-- Comprobar si el jugador sigue vivo O si la etiqueta (o su padre) fueron destruidos
-		if not jugadoresVivos[char] or not tag.Parent or not tag.Adornee then
-			tag:Destroy()
-			activeEspTags[char] = nil
-		end
+	local function onCharacterRemoving(character)
+		eliminarHighlight(character)
+	end
+
+	-- Conectar si el personaje ya existe o si aparece más tarde
+	if newPlayer.Character then
+		onCharacterAdded(newPlayer.Character)
+	end
+	
+	-- Guardar las conexiones para poder desconectarlas después
+	characterConnections[newPlayer] = {
+		Added = newPlayer.CharacterAdded:Connect(onCharacterAdded),
+		Removing = newPlayer.CharacterRemoving:Connect(onCharacterRemoving)
+	}
+end
+
+local function onPlayerRemoving(leavingPlayer)
+	-- Asegurarse de limpiar cualquier highlight si el jugador se va
+	if leavingPlayer.Character then
+		eliminarHighlight(leavingPlayer.Character)
+	end
+	-- Limpiar las conexiones
+	if characterConnections[leavingPlayer] then
+		characterConnections[leavingPlayer].Added:Disconnect()
+		characterConnections[leavingPlayer].Removing:Disconnect()
+		characterConnections[leavingPlayer] = nil
 	end
 end
 
 local function enOpcion5Click()
-	resaltarJugadoresActivo = not resaltarJugadoresActivo
+	resaltarActivo = not resaltarActivo
 	
-	if resaltarJugadoresActivo then
+	if resaltarActivo then
 		botonOpcion5.Text = "Resaltar: ON"
 		botonOpcion5.BackgroundColor3 = Color3.fromRGB(60, 140, 70)
-		ultimoResaltado = 0
-		conexionResaltar = RunService.Heartbeat:Connect(bucleDeResaltado)
-
-	else
-		botonOpcion5.Text = "Resaltar Nombres"
-		botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
-
-		-- Detener el bucle
-		if conexionResaltar then
-			conexionResaltar:Disconnect()
-			conexionResaltar = nil
+		
+		-- Aplicar Highlight a todos los jugadores existentes al activar
+		for _, p in pairs(PlayersService:GetPlayers()) do
+			onPlayerAdded(p) -- Llamar a la función para cada jugador
 		end
 		
-		-- Limpiar todas las etiquetas
-		for char, tag in pairs(activeEspTags) do
-			if tag then
-				tag:Destroy()
+		-- Conectar para jugadores que se unan después
+		connectionPlayerAdded = PlayersService.PlayerAdded:Connect(onPlayerAdded)
+		connectionPlayerRemoving = PlayersService.PlayerRemoving:Connect(onPlayerRemoving)
+		table.insert(conexionesActivas, connectionPlayerAdded)
+		table.insert(conexionesActivas, connectionPlayerRemoving)
+
+	else
+		botonOpcion5.Text = "Resaltar: OFF"
+		botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+
+		-- Desconectar las conexiones específicas de Highlight
+		if connectionPlayerAdded then
+			connectionPlayerAdded:Disconnect()
+			connectionPlayerAdded = nil
+		end
+		if connectionPlayerRemoving then
+			connectionPlayerRemoving:Disconnect()
+			connectionPlayerRemoving = nil
+		end
+		
+		-- Desconectar todas las conexiones de CharacterAdded/Removing
+		for player, connections in pairs(characterConnections) do
+			connections.Added:Disconnect()
+			connections.Removing:Disconnect()
+		end
+		characterConnections = {}
+
+		-- Eliminar todos los Highlights existentes
+		for char, highlight in pairs(highlightObjects) do
+			if highlight then
+				highlight:Destroy()
 			end
 		end
-		activeEspTags = {}
+		highlightObjects = {} -- Reiniciar la tabla
 	end
 end
 ------------------------------------------------------
@@ -649,11 +681,11 @@ local function enOpcion7Click()
 	detenerAutoapuntado()
 	
 	estaSiguiendo = false
-	estaSiguiendoEquipo = false
 	if conexionDeSeguimiento then
 		conexionDeSeguimiento:Disconnect()
 		conexionDeSeguimiento = nil
 	end
+	estaSiguiendoEquipo = false
 	if conexionSeguimientoEquipo then
 		conexionSeguimientoEquipo:Disconnect()
 		conexionSeguimientoEquipo = nil
@@ -661,18 +693,27 @@ local function enOpcion7Click()
 	
 	airJumpActivo = false
 	
-	-- Limpiar Resaltado
-	if conexionResaltar then
-		conexionResaltar:Disconnect()
-		conexionResaltar = nil
+	-- Limpiar Resaltado (Aura)
+	resaltarActivo = false
+	if connectionPlayerAdded then
+		connectionPlayerAdded:Disconnect()
+		connectionPlayerAdded = nil
 	end
-	resaltarJugadoresActivo = false
-	for char, tag in pairs(activeEspTags) do
-		if tag then
-			tag:Destroy()
+	if connectionPlayerRemoving then
+		connectionPlayerRemoving:Disconnect()
+		connectionPlayerRemoving = nil
+	end
+	for player, connections in pairs(characterConnections) do
+		connections.Added:Disconnect()
+		connections.Removing:Disconnect()
+	end
+	characterConnections = {}
+	for char, highlight in pairs(highlightObjects) do
+		if highlight then
+			highlight:Destroy()
 		end
 	end
-	activeEspTags = {}
+	highlightObjects = {}
 
 	-- Limpiar TP Loop
 	if conexionTpLoop then
@@ -680,15 +721,18 @@ local function enOpcion7Click()
 		conexionTpLoop = nil
 	end
 	
+	-- Desconectar todas las conexiones generales del script
 	for _, con in ipairs(conexionesActivas) do
 		con:Disconnect()
 	end
 	conexionesActivas = {} 
 	
+	-- Destruir la GUI
 	if screenGui then
 		screenGui:Destroy()
 	end
 	
+	-- Establecer variables a nil para ayudar al recolector de basura
 	screenGui = nil
 	menuContent = nil
 	toggleButton = nil
@@ -714,10 +758,11 @@ table.insert(conexionesActivas, botonOpcion1.MouseButton1Click:Connect(enOpcion1
 table.insert(conexionesActivas, botonOpcion2.MouseButton1Click:Connect(enOpcion2Click))
 table.insert(conexionesActivas, botonOpcion3.MouseButton1Click:Connect(enOpcion3Click))
 table.insert(conexionesActivas, botonOpcion4.MouseButton1Click:Connect(enOpcion4Click))
-table.insert(conexionesActivas, botonOpcion5.MouseButton1Click:Connect(enOpcion5Click))
-table.insert(conexionesActivas, botonOpcion6.MouseButton1Click:Connect(enOpcion6Click))
-table.insert(conexionesActivas, botonOpcion7.MouseButton1Click:Connect(enOpcion7Click))
+table.insert(conexionesActivas, botonOpcion5.MouseButton1Click:Connect(enOpcion5Click)) -- Botón de Resaltado
+table.insert(conexionesActivas, botonOpcion6.MouseButton1Click:Connect(enOpcion6Click)) -- Botón de Teleport
+table.insert(conexionesActivas, botonOpcion7.MouseButton1Click:Connect(enOpcion7Click)) -- Botón de Detener Script
 
+--- CORREGIDO: Error de escritura (newMenuPosX) ---
 table.insert(conexionesActivas, menuContent:GetPropertyChangedSignal("Position"):Connect(function()
 	local newMenuPos = menuContent.Position
 	toggleButton.Position = UDim2.new(
