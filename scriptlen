@@ -25,8 +25,10 @@ menuContent.Parent = screenGui
 menuContent.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 menuContent.BorderColor3 = Color3.fromRGB(20, 20, 20)
 menuContent.BorderSizePixel = 2
-menuContent.Size = UDim2.new(0, 180, 0, 290) 
-menuContent.BackgroundTransparency = 0.3 
+--- CAMBIADO: Más fino y semitransparente ---
+menuContent.Size = UDim2.new(0, 180, 0, 290) -- Ancho reducido a 180
+menuContent.BackgroundTransparency = 0.3 -- Añadida transparencia
+-------------------------------------------
 menuContent.Position = UDim2.new(0, 10, 0, 50) 
 menuContent.Visible = false 
 menuContent.Draggable = true
@@ -36,7 +38,9 @@ local toggleButton = Instance.new("TextButton")
 toggleButton.Name = "ToggleButton"
 toggleButton.Parent = screenGui
 toggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+--- AÑADIDO: Transparencia al botón principal ---
 toggleButton.BackgroundTransparency = 0.3
+---------------------------------------------
 toggleButton.BorderColor3 = Color3.fromRGB(20, 20, 20)
 toggleButton.BorderSizePixel = 2
 toggleButton.Size = UDim2.new(0, 80, 0, 30)
@@ -229,6 +233,12 @@ local function bucleDeSeguimiento()
 	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
 	local rootPart = char and char:FindFirstChild("HumanoidRootPart")
 	if not humanoid or not rootPart then return end
+	
+	--- AÑADIDO: Comprobar si el jugador se está moviendo ---
+	if humanoid.MoveDirection.Magnitude > 0.1 then
+		return -- El jugador tiene el control, no hacer nada
+	end
+	----------------------------------------------------
 
 	local objetivo = encontrarJugadorMasCercano()
 	if not objetivo or not objetivo:FindFirstChild("HumanoidRootPart") then
@@ -331,6 +341,12 @@ local function bucleDeSeguimientoEquipo()
 	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
 	local rootPart = char and char:FindFirstChild("HumanoidRootPart")
 	if not humanoid or not rootPart then return end
+
+	--- AÑADIDO: Comprobar si el jugador se está moviendo ---
+	if humanoid.MoveDirection.Magnitude > 0.1 then
+		return -- El jugador tiene el control, no hacer nada
+	end
+	----------------------------------------------------
 
 	local objetivo = encontrarJugadorMasCercanoEnEquipoPlayer() 
 	if not objetivo or not objetivo:FindFirstChild("HumanoidRootPart") then
