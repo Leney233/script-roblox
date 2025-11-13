@@ -25,7 +25,8 @@ menuContent.Parent = screenGui
 menuContent.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 menuContent.BorderColor3 = Color3.fromRGB(20, 20, 20)
 menuContent.BorderSizePixel = 2
-menuContent.Size = UDim2.new(0, 200, 0, 290) -- Alto para 7 botones
+--- CAMBIADO: Alto para 7 botones ---
+menuContent.Size = UDim2.new(0, 200, 0, 290) 
 menuContent.Position = UDim2.new(0, 10, 0, 50) 
 menuContent.Visible = false 
 menuContent.Draggable = true
@@ -93,7 +94,7 @@ botonOpcion4.Text = "Salto Aire"
 botonOpcion4.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion4.Position = UDim2.new(0.05, 0, 0, 130) 
 
---- CAMBIADO: Botón 5 (ESP) ---
+--- AÑADIDO: Botón 5 (Resaltar) ---
 local botonOpcion5 = Instance.new("TextButton")
 botonOpcion5.Name = "Opcion5"
 botonOpcion5.Parent = menuContent
@@ -101,15 +102,15 @@ botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 botonOpcion5.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion5.Font = Enum.Font.SourceSans
 botonOpcion5.TextSize = 18
-botonOpcion5.Text = "ESP Cajas: OFF"
+botonOpcion5.Text = "Resaltar"
 botonOpcion5.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion5.Position = UDim2.new(0.05, 0, 0, 170) 
---------------------------------
+----------------------------------
 
+--- RENOMBRADO: Botón 6 (Teleport) ---
 local botonOpcion6 = Instance.new("TextButton")
 botonOpcion6.Name = "Opcion6"
 botonOpcion6.Parent = menuContent
--- (Propiedades...)
 botonOpcion6.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 botonOpcion6.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion6.Font = Enum.Font.SourceSans
@@ -117,11 +118,12 @@ botonOpcion6.TextSize = 18
 botonOpcion6.Text = "Teleport"
 botonOpcion6.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion6.Position = UDim2.new(0.05, 0, 0, 210) 
+---------------------------------------------
 
+--- RENOMBRADO: Botón 7 (DETENER) ---
 local botonOpcion7 = Instance.new("TextButton")
 botonOpcion7.Name = "Opcion7"
 botonOpcion7.Parent = menuContent
--- (Propiedades...)
 botonOpcion7.BackgroundColor3 = Color3.fromRGB(170, 40, 40) 
 botonOpcion7.TextColor3 = Color3.fromRGB(255, 255, 255)
 botonOpcion7.Font = Enum.Font.SourceSansBold
@@ -129,6 +131,7 @@ botonOpcion7.TextSize = 18
 botonOpcion7.Text = "DETENER SCRIPT"
 botonOpcion7.Size = UDim2.new(0.9, 0, 0, 30)
 botonOpcion7.Position = UDim2.new(0.05, 0, 0, 250) 
+---------------------------------------------
 
 --- Menú de Teleport ---
 local tpMenu = Instance.new("Frame")
@@ -412,10 +415,8 @@ local TIEMPO_ESPERA_AIM = 0.3
 local airJumpActivo = false
 --- AÑADIDO: Estado de Resaltar ---
 local resaltarJugadoresActivo = false
-local conexionResaltar = nil
-local RESALTAR_COOLDOWN = 0.1 -- 10 veces por segundo
-local ultimoResaltado = 0
-local activeEspBoxes = {} -- Tabla para guardar las cajas activas
+local conexionResaltarPlayerAdded = nil
+local conexionesResaltarCharAdded = {}
 ------------------------------------
 
 -- (Lógica de Autoapuntado - Opción 2 - Con control de mirada)
@@ -497,53 +498,46 @@ local function enOpcion4Click()
 end
 -----------------------------------------------
 
---- MODIFICADO: Lógica de Resaltar Cajas (Opción 5) ---
-local function aplicarResaltadoCaja(character)
-	if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-	local rootPart = character.HumanoidRootPart
+--- MODIFICADO: Lógica de Resaltar Nombres (Opción 5) ---
+local function aplicarResaltadoNombre(character, activar)
+	if not character or not character:FindFirstChild("Head") then return end
+	local head = character:FindFirstChild("Head")
 	
-	if activeEspBoxes[character] then
-		return -- Ya lo tiene
-	end
+	local espTag = head:FindFirstChild("NombreResaltado")
 
-	-- Crear la GUI
-	local billGui = Instance.new("BillboardGui")
-	billGui.Name = "ESPBox"
-	billGui.AlwaysOnTop = true
-	billGui.Size = UDim2.new(0, 100, 0, 150) -- Tamaño de la caja (en píxeles)
-	billGui.StudsOffset = Vector3.new(0, 1, 0) -- Centrarlo en el personaje
-	billGui.Adornee = rootPart
-	
-	local frame = Instance.new("Frame")
-	frame.BackgroundTransparency = 1 -- Sin fondo
-	frame.BorderSizePixel = 2
-	frame.BorderColor3 = Color3.fromRGB(255, 255, 255) -- Caja blanca
-	frame.Size = UDim2.new(1, 0, 1, 0) -- Llenar la BillboardGui
-	frame.Parent = billGui
-	
-	billGui.Parent = rootPart
-	activeEspBoxes[character] = billGui -- Guardar la referencia
-end
-
--- Bucle que revisa a todos constantemente
-local function bucleDeResaltado()
-	local ahora = os.clock()
-	if ahora - ultimoResaltado < RESALTAR_COOLDOWN then return end
-	ultimoResaltado = ahora
-	
-	local jugadoresVivos = {}
-	for _, p in pairs(PlayersService:GetPlayers()) do
-		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
-			aplicarResaltadoCaja(p.Character)
-			jugadoresVivos[p.Character] = true
+	if activar then
+		if not espTag then
+			local billGui = Instance.new("BillboardGui")
+			billGui.Name = "NombreResaltado"
+			billGui.AlwaysOnTop = true 
+			billGui.Size = UDim2.new(0, 200, 0, 50)
+			billGui.StudsOffset = Vector3.new(0, 2.5, 0) 
+			billGui.Adornee = head
+			
+			local textLabel = Instance.new("TextLabel")
+			textLabel.BackgroundTransparency = 1
+			textLabel.Text = character.Name
+			textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			textLabel.Font = Enum.Font.SourceSansBold
+			textLabel.TextSize = 18
+			textLabel.TextStrokeTransparency = 0 
+			textLabel.Parent = billGui
+			
+			billGui.Parent = head
+		end
+	else
+		if espTag then
+			espTag:Destroy()
 		end
 	end
-	
-	-- Limpiar cajas de jugadores muertos o que se fueron
-	for char, box in pairs(activeEspBoxes) do
-		if not jugadoresVivos[char] then
-			box:Destroy()
-			activeEspBoxes[char] = nil
+end
+
+-- Esta función se llamará cuando un personaje aparezca
+local function onCharacterAddedForHighlight(character)
+	if resaltarJugadoresActivo then
+		task.wait(0.1) -- Esperar un breve momento para que la cabeza exista
+		if character and character.Parent then
+			aplicarResaltadoNombre(character, true)
 		end
 	end
 end
@@ -552,27 +546,49 @@ local function enOpcion5Click()
 	resaltarJugadoresActivo = not resaltarJugadoresActivo
 	
 	if resaltarJugadoresActivo then
-		botonOpcion5.Text = "ESP Cajas: ON"
+		botonOpcion5.Text = "Resaltar: ON"
 		botonOpcion5.BackgroundColor3 = Color3.fromRGB(60, 140, 70)
-		ultimoResaltado = 0
-		conexionResaltar = RunService.Heartbeat:Connect(bucleDeResaltado)
-	else
-		botonOpcion5.Text = "ESP Cajas: OFF"
-		botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
 
-		-- Detener el bucle
-		if conexionResaltar then
-			conexionResaltar:Disconnect()
-			conexionResaltar = nil
-		end
-		
-		-- Limpiar todas las cajas
-		for char, box in pairs(activeEspBoxes) do
-			if box then
-				box:Destroy()
+		-- 1. Conectar para jugadores que se unan *después*
+		conexionResaltarPlayerAdded = PlayersService.PlayerAdded:Connect(function(newPlayer)
+			conexionesResaltarCharAdded[newPlayer] = newPlayer.CharacterAdded:Connect(onCharacterAddedForHighlight)
+		end)
+		table.insert(conexionesActivas, conexionResaltarPlayerAdded)
+
+		-- 2. Conectar y aplicar para jugadores *actuales*
+		for _, p in pairs(PlayersService:GetPlayers()) do
+			if p ~= player then
+				if p.Character then
+					onCharacterAddedForHighlight(p.Character)
+				end
+				-- Conectar para respawns
+				conexionesResaltarCharAdded[p] = p.CharacterAdded:Connect(onCharacterAddedForHighlight)
+				table.insert(conexionesActivas, conexionesResaltarCharAdded[p])
 			end
 		end
-		activeEspBoxes = {}
+		
+	else
+		botonOpcion5.Text = "Resaltar"
+		botonOpcion5.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+
+		-- 1. Desconectar PlayerAdded
+		if conexionResaltarPlayerAdded then
+			conexionResaltarPlayerAdded:Disconnect()
+			conexionResaltarPlayerAdded = nil
+		end
+		
+		-- 2. Desconectar todos los listeners de CharacterAdded
+		for player, connection in pairs(conexionesResaltarCharAdded) do
+			connection:Disconnect()
+		end
+		conexionesResaltarCharAdded = {}
+		
+		-- 3. Limpiar a todos los jugadores actuales
+		for _, p in pairs(PlayersService:GetPlayers()) do
+			if p.Character then
+				aplicarResaltadoNombre(p.Character, false)
+			end
+		end
 	end
 end
 ------------------------------------------------------
@@ -658,17 +674,22 @@ local function enOpcion7Click()
 	airJumpActivo = false
 	
 	-- Limpiar Resaltado
-	if conexionResaltar then
-		conexionResaltar:Disconnect()
-		conexionResaltar = nil
-	end
-	resaltarJugadoresActivo = false
-	for char, box in pairs(activeEspBoxes) do
-		if box then
-			box:Destroy()
+	if resaltarJugadoresActivo then
+		resaltarJugadoresActivo = false
+		for _, p in pairs(PlayersService:GetPlayers()) do
+			if p.Character then
+				aplicarResaltadoNombre(p.Character, false)
+			end
 		end
 	end
-	activeEspBoxes = {}
+	if conexionResaltarPlayerAdded then
+		conexionResaltarPlayerAdded:Disconnect()
+		conexionResaltarPlayerAdded = nil
+	end
+	for player, connection in pairs(conexionesResaltarCharAdded) do
+		connection:Disconnect()
+	end
+	conexionesResaltarCharAdded = {}
 
 	-- Limpiar TP Loop
 	if conexionTpLoop then
