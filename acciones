@@ -1,16 +1,25 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
+local mouse = player:GetMouse()
 local playerGui = player:WaitForChild("PlayerGui")
 
 -- Variables de estado
 local currentTrack = nil 
 local currentAnimId = nil 
 
+-- VARIABLES TRANSPARENCIA
+local draggingSlider = false
+local currentTransparency = 0
+local lastAppliedTransparency = 0 
+local originalTransparencies = {} 
+local mapLoaded = false 
+
 -- =================================================================
--- 1. TUS EMOTES (IDs Guardados)
+-- 1. TUS EMOTES
 -- =================================================================
 local ID_TORNADO = 135373056067761
 local ID_SENTARSE = 71112973269174
@@ -29,10 +38,30 @@ task.spawn(function()
 end)
 
 -- =================================================================
--- 2. GUI EN BARRA SUPERIOR (TOPBAR)
+-- 2. ESCANEO DE MAPA (MEMORIA VISUAL)
+-- =================================================================
+local function saveOriginalState(part)
+	if part:IsA("BasePart") or part:IsA("Decal") or part:IsA("Texture") then
+		if originalTransparencies[part] == nil then
+			originalTransparencies[part] = part.Transparency
+		end
+	end
+end
+
+task.spawn(function()
+	wait(1) 
+	for _, obj in pairs(workspace:GetDescendants()) do
+		saveOriginalState(obj)
+	end
+	workspace.DescendantAdded:Connect(saveOriginalState)
+	mapLoaded = true
+end)
+
+-- =================================================================
+-- 3. INTERFAZ GRÁFICA
 -- =================================================================
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "TopBarMenu_Hotkeys"
+screenGui.Name = "System_Clean"
 screenGui.ResetOnSpawn = false
 screenGui.DisplayOrder = 100
 screenGui.IgnoreGuiInset = true 
@@ -40,16 +69,15 @@ screenGui.Parent = playerGui
 
 -- CONTENEDOR PRINCIPAL
 local mainFrame = Instance.new("Frame")
-mainFrame.Name = "DragContainer"
+mainFrame.Name = "TopContainer"
 mainFrame.Size = UDim2.new(0, 110, 0, 32) 
--- Posición alineada (Y=8)
 mainFrame.Position = UDim2.new(0, 230, 0, 8) 
 mainFrame.BackgroundTransparency = 1 
 mainFrame.Parent = screenGui
 
--- BOTÓN "ACCIONES"
+-- BOTÓN PRINCIPAL
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Name = "ActionBtn"
+toggleBtn.Name = "ToggleBtn"
 toggleBtn.Text = "ACCIONES"
 toggleBtn.Size = UDim2.new(1, 0, 1, 0)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0) 
@@ -58,10 +86,7 @@ toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.TextSize = 12 
 toggleBtn.Parent = mainFrame
-
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(1, 0) 
-btnCorner.Parent = toggleBtn
+local btnCorner = Instance.new("UICorner"); btnCorner.CornerRadius = UDim.new(1, 0); btnCorner.Parent = toggleBtn
 
 -- LISTA DESPLEGABLE
 local listFrame = Instance.new("Frame")
@@ -71,56 +96,100 @@ listFrame.Position = UDim2.new(0, -5, 0, 38)
 listFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 listFrame.BackgroundTransparency = 0.2
 listFrame.Visible = false 
+listFrame.ZIndex = 10 
 listFrame.Parent = mainFrame
-
-local listCorner = Instance.new("UICorner")
-listCorner.CornerRadius = UDim.new(0, 8)
-listCorner.Parent = listFrame
-
-local layout = Instance.new("UIListLayout")
-layout.Parent = listFrame
-layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Padding = UDim.new(0, 4)
-
-local padding = Instance.new("UIPadding")
-padding.PaddingTop = UDim.new(0, 8)
-padding.PaddingBottom = UDim.new(0, 8)
-padding.Parent = listFrame
+local listCorner = Instance.new("UICorner"); listCorner.CornerRadius = UDim.new(0, 8); listCorner.Parent = listFrame
+local layout = Instance.new("UIListLayout"); layout.Parent = listFrame; layout.HorizontalAlignment = Enum.HorizontalAlignment.Center; layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.Padding = UDim.new(0, 4)
+local padding = Instance.new("UIPadding"); padding.PaddingTop = UDim.new(0, 8); padding.PaddingBottom = UDim.new(0, 8); padding.Parent = listFrame
 
 -- =================================================================
--- 3. ARRASTRE
+-- 4. INTERFAZ SLIDER
 -- =================================================================
-local dragging = false
-local dragStartMousePos = nil
-local startFramePos = nil
+local sliderBarBackground = Instance.new("Frame")
+sliderBarBackground.Name = "SliderBg"
+sliderBarBackground.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+sliderBarBackground.BackgroundTransparency = 0.2
+sliderBarBackground.BorderSizePixel = 0
+sliderBarBackground.Position = UDim2.new(0.5, -150, 0.9, -20) 
+sliderBarBackground.Size = UDim2.new(0, 300, 0, 12)
+sliderBarBackground.Visible = false 
+sliderBarBackground.ZIndex = 20
+sliderBarBackground.Parent = screenGui
+local sBgC = Instance.new("UICorner"); sBgC.CornerRadius = UDim.new(1, 0); sBgC.Parent = sliderBarBackground
 
-toggleBtn.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStartMousePos = input.Position
-		startFramePos = mainFrame.Position 
-	end
-end)
+local sliderFill = Instance.new("Frame")
+sliderFill.Name = "SliderFill"
+sliderFill.BackgroundColor3 = Color3.fromRGB(170, 0, 255) 
+sliderFill.BorderSizePixel = 0
+sliderFill.Size = UDim2.new(0, 0, 1, 0)
+sliderFill.ZIndex = 21
+sliderFill.Parent = sliderBarBackground
+local sFilC = Instance.new("UICorner"); sFilC.CornerRadius = UDim.new(1, 0); sFilC.Parent = sliderFill
 
-toggleBtn.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = false
-	end
-end)
+local sliderKnob = Instance.new("ImageButton")
+sliderKnob.Name = "Knob"
+sliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+sliderKnob.BorderSizePixel = 0
+sliderKnob.Position = UDim2.new(0, -10, 0.5, -10)
+sliderKnob.Size = UDim2.new(0, 20, 0, 20)
+sliderKnob.ZIndex = 22
+sliderKnob.Parent = sliderBarBackground
+local skC = Instance.new("UICorner"); skC.CornerRadius = UDim.new(1, 0); skC.Parent = sliderKnob
 
-UserInputService.InputChanged:Connect(function(input)
-	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-		local delta = input.Position - dragStartMousePos
-		mainFrame.Position = UDim2.new(
-			startFramePos.X.Scale, startFramePos.X.Offset + delta.X,
-			startFramePos.Y.Scale, startFramePos.Y.Offset + delta.Y
-		)
-	end
-end)
+local valueLabel = Instance.new("TextLabel")
+valueLabel.Name = "Label"
+valueLabel.BackgroundTransparency = 1
+valueLabel.Position = UDim2.new(0.5, 0, -2.5, 0)
+valueLabel.Size = UDim2.new(1, 0, 1, 0)
+valueLabel.Font = Enum.Font.GothamBold
+valueLabel.Text = "Transparencia Mapa: 0%"
+valueLabel.TextColor3 = Color3.new(1, 1, 1)
+valueLabel.TextStrokeTransparency = 0.5
+valueLabel.TextSize = 16
+valueLabel.ZIndex = 20
+valueLabel.Parent = sliderBarBackground
 
 -- =================================================================
--- 4. LÓGICA DE INTERRUPTOR
+-- 5. LÓGICA SLIDER & MAPA
+-- =================================================================
+
+sliderKnob.MouseButton1Down:Connect(function() draggingSlider = true end)
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then draggingSlider = false end
+end)
+
+local function updateSlider()
+	if not draggingSlider then return end
+	local barPos = sliderBarBackground.AbsolutePosition
+	local barSize = sliderBarBackground.AbsoluteSize
+	local mouseX = mouse.X
+	local relativeX = math.clamp(mouseX - barPos.X, 0, barSize.X)
+	local percentage = relativeX / barSize.X
+	
+	sliderKnob.Position = UDim2.new(percentage, -10, 0.5, -10)
+	sliderFill.Size = UDim2.new(percentage, 0, 1, 0)
+	currentTransparency = percentage
+	valueLabel.Text = "Transparencia Mapa: " .. math.floor(percentage * 100) .. "%"
+end
+
+local function applyTransparency()
+	if not mapLoaded then return end
+	if math.abs(currentTransparency - lastAppliedTransparency) < 0.01 then return end
+	lastAppliedTransparency = currentTransparency
+
+	for part, originalTransparency in pairs(originalTransparencies) do
+		if part and part.Parent then 
+			if player.Character and part:IsDescendantOf(player.Character) then continue end
+			local newTransparency = math.max(originalTransparency, currentTransparency)
+			part.Transparency = newTransparency
+		else
+			originalTransparencies[part] = nil
+		end
+	end
+end
+
+-- =================================================================
+-- 6. LÓGICA EMOTES
 -- =================================================================
 
 local function stopCurrent()
@@ -137,13 +206,11 @@ local function toggleAnim(animId)
 		return 
 	end
 	currentAnimId = animId
-	
 	local char = player.Character
 	if not char then return end
 	local hum = char:FindFirstChild("Humanoid")
 	if not hum then return end
 	local animator = hum:FindFirstChild("Animator") or Instance.new("Animator", hum)
-	
 	local animation = Instance.new("Animation")
 	animation.AnimationId = "rbxassetid://" .. tostring(animId)
 	local success, track = pcall(function() return animator:LoadAnimation(animation) end)
@@ -154,38 +221,29 @@ end
 
 local function killScript()
 	stopCurrent()
+	if mapLoaded then
+		for part, original in pairs(originalTransparencies) do
+			if part and part.Parent then part.Transparency = original end
+		end
+	end
 	screenGui:Destroy()
 	script:Destroy()
 end
 
 -- =================================================================
--- 5. DETECCIÓN DE TECLAS (F y G)
--- =================================================================
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-	-- gameProcessedEvent es verdadero si estás escribiendo en el chat o en un menú
-	-- Si es verdadero, NO hacemos nada para no interrumpir el chat.
-	if gameProcessedEvent then return end
-
-	if input.KeyCode == Enum.KeyCode.F then
-		toggleAnim(ID_SENTARSE) -- Activa Sentarse
-	elseif input.KeyCode == Enum.KeyCode.G then
-		toggleAnim(ID_TORNADO) -- Activa Tornado
-	end
-end)
-
--- =================================================================
--- 6. GENERAR BOTONES
+-- 7. BOTONES
 -- =================================================================
 local function createButton(text, color, order, callback)
 	local btn = Instance.new("TextButton")
 	btn.Text = text
 	btn.Size = UDim2.new(0.9, 0, 0, 30) 
 	btn.BackgroundColor3 = color
-	btn.BackgroundTransparency = 0.2
+	btn.BackgroundTransparency = 0.3
 	btn.TextColor3 = Color3.new(1,1,1)
 	btn.Font = Enum.Font.GothamSemibold
 	btn.TextSize = 11
 	btn.LayoutOrder = order
+	btn.ZIndex = 11
 	btn.Parent = listFrame
 	local uc = Instance.new("UICorner"); uc.CornerRadius = UDim.new(0, 6); uc.Parent = btn
 	btn.MouseButton1Click:Connect(callback)
@@ -195,12 +253,36 @@ for i, data in ipairs(misEmotes) do
 	createButton(data.Name, Color3.fromRGB(60, 60, 70), i, function() toggleAnim(data.Id) end)
 end
 
-createButton("💀 MATAR SCRIPT", Color3.fromRGB(200, 30, 30), 100, killScript)
+createButton("TRANSPARENCIA MAPA", Color3.fromRGB(120, 40, 200), 50, function()
+	sliderBarBackground.Visible = not sliderBarBackground.Visible
+end)
 
-local totalHeight = (#misEmotes + 1) * 34 + 20 
-listFrame.Size = UDim2.new(1, 10, 0, totalHeight)
+createButton("💀 CERRAR TODO", Color3.fromRGB(200, 30, 30), 100, killScript)
+
+listFrame.Size = UDim2.new(1, 10, 0, (#misEmotes + 2) * 34 + 20)
 
 toggleBtn.MouseButton1Click:Connect(function()
 	listFrame.Visible = not listFrame.Visible
 	if listFrame.Visible then toggleBtn.Text = "CERRAR" else toggleBtn.Text = "ACCIONES" end
+end)
+
+-- =================================================================
+-- 8. INPUTS (TECLAS)
+-- =================================================================
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	
+	if input.KeyCode == Enum.KeyCode.X then
+		sliderBarBackground.Visible = not sliderBarBackground.Visible
+	end
+
+	if input.KeyCode == Enum.KeyCode.F then toggleAnim(ID_SENTARSE) 
+	elseif input.KeyCode == Enum.KeyCode.G then toggleAnim(ID_TORNADO) 
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	updateSlider()
+	applyTransparency()
 end)
