@@ -27,11 +27,19 @@ local maxHitboxSize = 200
 local currentHitboxSize = minHitboxSize 
 local TargetList = {}
 
+-- IDs SEGÚN TU ÚLTIMA IMAGEN
 local ID_TORNADO = 135373056067761
 local ID_SENTARSE = 71112973269174
+local ID_BERRINCHE = 86339673982616
+local ID_CUTE = 98695071641289
+local ID_INVISIBLE = 113994067684875
+
 local misEmotes = {
 	{Name = "Tornado (G)",  Id = ID_TORNADO},
-	{Name = "Sentarse (F)", Id = ID_SENTARSE}
+	{Name = "Sentarse (F)", Id = ID_SENTARSE},
+	{Name = "Berrinche (H)", Id = ID_BERRINCHE},
+	{Name = "Cute (J)",      Id = ID_CUTE},
+	{Name = "Invisible (K)", Id = ID_INVISIBLE}
 }
 
 task.spawn(function()
@@ -59,7 +67,7 @@ task.spawn(function()
 end)
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "System_Final_V24_SyncFix"
+screenGui.Name = "System_Final_V37_ImageIDs"
 screenGui.ResetOnSpawn = false
 screenGui.DisplayOrder = 100
 screenGui.IgnoreGuiInset = true 
@@ -311,6 +319,8 @@ RunService.RenderStepped:Connect(function()
 			end
 			
 			root.CFrame = myRoot.CFrame * CFrame.new(0, 0, -3) 
+			root.Velocity = Vector3.new(0,0,0)
+			root.RotVelocity = Vector3.new(0,0,0)
 		end
 	elseif targetPlayer == nil and isTargeting == true then
 		isTargeting = false
@@ -340,6 +350,8 @@ RunService.RenderStepped:Connect(function()
 					end
 					
 					root.CFrame = myRoot.CFrame * CFrame.new(0, 0, -4) 
+					root.Velocity = Vector3.new(0,0,0)
+					root.RotVelocity = Vector3.new(0,0,0)
 				end
 			end
 		end
@@ -515,7 +527,10 @@ UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end
 	if input.KeyCode == Enum.KeyCode.X then sliderBarBackground.Visible = not sliderBarBackground.Visible end
 	if input.KeyCode == Enum.KeyCode.F then toggleAnim(ID_SENTARSE) 
-	elseif input.KeyCode == Enum.KeyCode.G then toggleAnim(ID_TORNADO) 
+	elseif input.KeyCode == Enum.KeyCode.G then toggleAnim(ID_TORNADO)
+	elseif input.KeyCode == Enum.KeyCode.H then toggleAnim(ID_BERRINCHE)
+	elseif input.KeyCode == Enum.KeyCode.J then toggleAnim(ID_CUTE)
+	elseif input.KeyCode == Enum.KeyCode.K then toggleAnim(ID_INVISIBLE)
 	end
 	
 	if input.KeyCode == Enum.KeyCode.C then
