@@ -662,3 +662,262 @@ table.insert(conexionesActivas, player.CharacterAdded:Connect(conectarEventosDeP
 if player.Character then
 	conectarEventosDePersonaje(player.Character)
 end
+-- Inicio del nuevo script
+local Players = game:GetService("Players")
+local PathfindingService = game:GetService("PathfindingService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+local isTracking = false
+local trackingTarget = nil
+local visualFolder = nil
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MenuRastreoHibrido"
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+local BotonMenu = Instance.new("TextButton")
+BotonMenu.Parent = ScreenGui
+BotonMenu.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BotonMenu.BackgroundTransparency = 0.5
+BotonMenu.Size = UDim2.new(0, 20, 0, 30)
+BotonMenu.Font = Enum.Font.SourceSansBold
+BotonMenu.Text = ""
+BotonMenu.TextColor3 = Color3.fromRGB(255, 255, 255)
+BotonMenu.TextSize = 18
+
+BotonMenu.Position = UDim2.new(0, 345, 0, -50)
+
+local UICornerBoton = Instance.new("UICorner")
+UICornerBoton.CornerRadius = UDim.new(0, 8)
+UICornerBoton.Parent = BotonMenu
+
+local Frame = Instance.new("Frame")
+Frame.Name = "MenuPrincipal"
+Frame.Parent = ScreenGui
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Frame.BackgroundTransparency = 0.1
+Frame.Size = UDim2.new(0, 220, 0, 300)
+Frame.Visible = false
+Frame.AnchorPoint = Vector2.new(1, 0)
+
+Frame.Position = UDim2.new(1, -20, 0, -50)
+
+local UICornerFrame = Instance.new("UICorner")
+UICornerFrame.CornerRadius = UDim.new(0, 10)
+UICornerFrame.Parent = Frame
+
+local Titulo = Instance.new("TextLabel")
+Titulo.Parent = Frame
+Titulo.Size = UDim2.new(1, 0, 0, 30)
+Titulo.BackgroundTransparency = 1
+Titulo.Text = "RASTREO HÍBRIDO"
+Titulo.TextColor3 = Color3.fromRGB(255, 255, 255)
+Titulo.Font = Enum.Font.SourceSansBold
+Titulo.TextSize = 18
+
+local InputNombre = Instance.new("TextBox")
+InputNombre.Parent = Frame
+InputNombre.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+InputNombre.Size = UDim2.new(0, 180, 0, 35)
+InputNombre.Font = Enum.Font.SourceSans
+InputNombre.PlaceholderText = "Nombre Jugador..."
+InputNombre.Text = ""
+InputNombre.TextColor3 = Color3.fromRGB(255, 255, 255)
+InputNombre.TextSize = 16
+
+InputNombre.Position = UDim2.new(0, 20, 0, 50)
+
+local UICornerInput = Instance.new("UICorner")
+UICornerInput.CornerRadius = UDim.new(0, 8)
+UICornerInput.Parent = InputNombre
+
+local BotonRastrear = Instance.new("TextButton")
+BotonRastrear.Parent = Frame
+BotonRastrear.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+BotonRastrear.Size = UDim2.new(0, 180, 0, 35)
+BotonRastrear.Font = Enum.Font.SourceSansBold
+BotonRastrear.Text = "INICIAR RASTREO"
+BotonRastrear.TextColor3 = Color3.fromRGB(255, 255, 255)
+BotonRastrear.TextSize = 14
+
+BotonRastrear.Position = UDim2.new(0, 20, 0, 100)
+
+local UICornerRastrear = Instance.new("UICorner")
+UICornerRastrear.CornerRadius = UDim.new(0, 8)
+UICornerRastrear.Parent = BotonRastrear
+
+local BotonDetener = Instance.new("TextButton")
+BotonDetener.Parent = Frame
+BotonDetener.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+BotonDetener.Size = UDim2.new(0, 180, 0, 35)
+BotonDetener.Font = Enum.Font.SourceSansBold
+BotonDetener.Text = "MATAR SCRIPT"
+BotonDetener.TextColor3 = Color3.fromRGB(255, 255, 255)
+BotonDetener.TextSize = 16
+
+BotonDetener.Position = UDim2.new(0, 20, 1, -45)
+
+local UICornerDetener = Instance.new("UICorner")
+UICornerDetener.CornerRadius = UDim.new(0, 8)
+UICornerDetener.Parent = BotonDetener
+
+local function limpiarVisuales()
+	if visualFolder then
+		visualFolder:Destroy()
+		visualFolder = nil
+	end
+end
+
+local function dibujarCamino(waypoints)
+	limpiarVisuales()
+	visualFolder = Instance.new("Folder")
+	visualFolder.Name = "RastreoVisuals"
+	visualFolder.Parent = workspace
+
+	local previousAttachment = nil
+	for i, waypoint in pairs(waypoints) do
+		local part = Instance.new("Part")
+		part.Size = Vector3.new(1, 1, 1)
+		part.Position = waypoint.Position + Vector3.new(0, 2, 0)
+		part.Anchored = true
+		part.CanCollide = false
+		part.Transparency = 1
+		part.Parent = visualFolder
+
+		local attachment = Instance.new("Attachment")
+		attachment.Parent = part
+
+		if previousAttachment then
+			local beam = Instance.new("Beam")
+			beam.Attachment0 = previousAttachment
+			beam.Attachment1 = attachment
+			beam.Width0 = 0.5
+			beam.Width1 = 0.5
+			beam.FaceCamera = true
+
+			if waypoint.Action == Enum.PathWaypointAction.Jump then
+				beam.Color = ColorSequence.new(Color3.fromRGB(255, 255, 0))
+			else
+				beam.Color = ColorSequence.new(Color3.fromRGB(0, 255, 127))
+			end
+			beam.Parent = part
+		end
+		previousAttachment = attachment
+	end
+end
+
+local function dibujarLineaDirecta(startPos, endPos)
+	limpiarVisuales()
+	visualFolder = Instance.new("Folder")
+	visualFolder.Name = "RastreoVisuals"
+	visualFolder.Parent = workspace
+
+	local partA = Instance.new("Part")
+	partA.Size = Vector3.new(1, 1, 1)
+	partA.Position = startPos
+	partA.Anchored = true
+	partA.CanCollide = false
+	partA.Transparency = 1
+	partA.Parent = visualFolder
+	local attA = Instance.new("Attachment")
+	attA.Parent = partA
+
+	local partB = Instance.new("Part")
+	partB.Size = Vector3.new(1, 1, 1)
+	partB.Position = endPos
+	partB.Anchored = true
+	partB.CanCollide = false
+	partB.Transparency = 1
+	partB.Parent = visualFolder
+	local attB = Instance.new("Attachment")
+	attB.Parent = partB
+
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = attA
+	beam.Attachment1 = attB
+	beam.Width0 = 0.3
+	beam.Width1 = 0.3
+	beam.FaceCamera = true
+	beam.Color = ColorSequence.new(Color3.fromRGB(255, 0, 0))
+	beam.Parent = partA
+end
+
+local function loopRastreo()
+	task.spawn(function()
+		while isTracking and trackingTarget do
+			local myChar = LocalPlayer.Character
+			local targetChar = trackingTarget.Character
+
+			if myChar and targetChar and myChar:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
+				local startPos = myChar.HumanoidRootPart.Position
+				local endPos = targetChar.HumanoidRootPart.Position
+
+				local path = PathfindingService:CreatePath({AgentRadius = 2, AgentHeight = 5, AgentCanJump = true})
+				local success, _ = pcall(function() path:ComputeAsync(startPos, endPos) end)
+
+				if success and path.Status == Enum.PathStatus.Success then
+					dibujarCamino(path:GetWaypoints())
+				else
+					dibujarLineaDirecta(startPos, endPos)
+				end
+			end
+			task.wait(0.2)
+		end
+		if not isTracking then limpiarVisuales() end
+	end)
+end
+
+local function buscarJugador(texto)
+	texto = string.lower(texto)
+	if texto == "" then return nil end
+	for _, p in pairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer and (string.find(string.lower(p.Name), texto) or string.find(string.lower(p.DisplayName), texto)) then
+			return p
+		end
+	end
+	return nil
+end
+
+BotonMenu.MouseButton1Click:Connect(function()
+	Frame.Visible = not Frame.Visible
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if not gameProcessed and input.KeyCode == Enum.KeyCode.V then
+		Frame.Visible = not Frame.Visible
+	end
+end)
+
+BotonRastrear.MouseButton1Click:Connect(function()
+	if isTracking then
+		isTracking = false
+		trackingTarget = nil
+		limpiarVisuales()
+		BotonRastrear.Text = "INICIAR RASTREO"
+		BotonRastrear.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+	else
+		local target = buscarJugador(InputNombre.Text)
+		if target then
+			trackingTarget = target
+			InputNombre.Text = target.Name
+			isTracking = true
+			BotonRastrear.Text = "DETENER RASTREO"
+			BotonRastrear.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+			loopRastreo()
+		else
+			BotonRastrear.Text = "NO ENCONTRADO"
+			task.wait(1)
+			BotonRastrear.Text = "INICIAR RASTREO"
+		end
+	end
+end)
+
+BotonDetener.MouseButton1Click:Connect(function()
+	isTracking = false
+	limpiarVisuales()
+	ScreenGui:Destroy()
+	script.Disabled = true
+	script:Destroy()
+end)
