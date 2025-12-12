@@ -27,7 +27,7 @@ local maxHitboxSize = 200
 local currentHitboxSize = minHitboxSize 
 local TargetList = {}
 
--- IDs SEGÚN TU ÚLTIMA IMAGEN
+-- IDs
 local ID_TORNADO = 135373056067761
 local ID_SENTARSE = 71112973269174
 local ID_BERRINCHE = 86339673982616
@@ -42,6 +42,7 @@ local misEmotes = {
 	{Name = "Invisible (K)", Id = ID_INVISIBLE}
 }
 
+-- Intentar ocultar el menú de emotes nativo
 task.spawn(function()
 	for i = 1, 10 do 
 		pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.EmotesMenu, false) end)
@@ -58,7 +59,7 @@ local function saveOriginalState(part)
 end
 
 task.spawn(function()
-	wait(1) 
+	task.wait(1) 
 	for _, obj in pairs(workspace:GetDescendants()) do
 		saveOriginalState(obj)
 	end
@@ -66,8 +67,9 @@ task.spawn(function()
 	mapLoaded = true
 end)
 
+-- --- INTERFAZ GRÁFICA (GUI) ---
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "System_Final_V37_ImageIDs"
+screenGui.Name = "System_Final_V38_Fixed"
 screenGui.ResetOnSpawn = false
 screenGui.DisplayOrder = 100
 screenGui.IgnoreGuiInset = true 
@@ -210,11 +212,16 @@ hbLabel.TextSize = 16
 hbLabel.ZIndex = 20
 hbLabel.Parent = hbSliderBg
 
+-- FUNCIONES DE LÓGICA
 local function findTarget(text)
 	text = text:lower()
+	-- FIX: Evitar búsqueda si el texto es vacío
+	if text:gsub(" ", "") == "" then return nil end
+	
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p ~= player then
-			if p.Name:lower():sub(1, #text) == text or p.DisplayName:lower():sub(1, #text) == text then
+			-- FIX: Asegurar que comparamos algo válido
+			if #text > 0 and (p.Name:lower():sub(1, #text) == text or p.DisplayName:lower():sub(1, #text) == text) then
 				return p
 			end
 		end
@@ -241,8 +248,15 @@ local function restoreAllPhysics()
 	end
 end
 
+-- EVENTO DEL TEXTBOX (ENTER)
 targetBox.FocusLost:Connect(function(enterPressed)
 	if enterPressed then
+		-- FIX: Verificación extra de texto vacío
+		if targetBox.Text:gsub(" ", "") == "" then
+			targetBox.Text = ""
+			return
+		end
+
 		local found = findTarget(targetBox.Text)
 		if found then
 			targetPlayer = found
@@ -254,13 +268,16 @@ targetBox.FocusLost:Connect(function(enterPressed)
 			isTargeting = false
 			targetBox.Text = "No encontrado"
 			targetBox.TextColor3 = Color3.fromRGB(255, 0, 0) 
-			wait(1)
-			targetBox.Text = ""
-			targetBox.TextColor3 = Color3.new(1,1,1)
+			task.wait(1)
+			if targetBox.Text == "No encontrado" then
+				targetBox.Text = ""
+				targetBox.TextColor3 = Color3.new(1,1,1)
+			end
 		end
 	end
 end)
 
+-- BUCLE PRINCIPAL (RenderStepped)
 RunService.RenderStepped:Connect(function()
 	if draggingSlider then
 		local barPos = sliderBarBackground.AbsolutePosition
@@ -276,7 +293,8 @@ RunService.RenderStepped:Connect(function()
 	if draggingHbSlider then
 		local barPos = hbSliderBg.AbsolutePosition
 		local barSize = hbSliderBg.AbsoluteSize
-		local relativeX = math.clamp(mouseX - barPos.X, 0, barSize.X)
+		-- CORREGIDO: mouseX no existe, debe ser mouse.X
+		local relativeX = math.clamp(mouse.X - barPos.X, 0, barSize.X)
 		local percentage = relativeX / barSize.X
 		local newSize = minHitboxSize + ((maxHitboxSize - minHitboxSize) * percentage)
 		currentHitboxSize = newSize
@@ -455,8 +473,13 @@ local hitboxBtn = createButton("HITBOX (OFF)", Color3.fromRGB(0, 180, 200), 55, 
 	end
 end)
 
+-- DEBOUNCE AÑADIDO AQUI
+local dbTarget = false
 local targetBtn = createButton("TARGET HITBOX", Color3.fromRGB(255, 100, 0), 60, function()
 	if bringAllEnabled then return end 
+	if dbTarget then return end -- Si está en enfriamiento, no hacer nada
+	dbTarget = true
+	
 	targetFrame.Visible = not targetFrame.Visible
 	if not targetFrame.Visible then
 		isTargeting = false
@@ -466,6 +489,9 @@ local targetBtn = createButton("TARGET HITBOX", Color3.fromRGB(255, 100, 0), 60,
 	else
 		targetBox:CaptureFocus()
 	end
+	
+	task.wait(0.5) -- Esperar 0.5 segundos antes de permitir click de nuevo
+	dbTarget = false
 end)
 
 local bringAllBtn = createButton("BRING ALL (OFF)", Color3.fromRGB(160, 32, 240), 65, function()
@@ -533,16 +559,5 @@ UserInputService.InputBegan:Connect(function(input, gp)
 	elseif input.KeyCode == Enum.KeyCode.K then toggleAnim(ID_INVISIBLE)
 	end
 	
-	if input.KeyCode == Enum.KeyCode.C then
-		if bringAllEnabled then return end
-		targetFrame.Visible = not targetFrame.Visible
-		if not targetFrame.Visible then
-			isTargeting = false
-			targetPlayer = nil
-			targetBox.Text = ""
-			restoreAllPhysics()
-		else
-			targetBox:CaptureFocus()
-		end
-	end
+	-- Se ha eliminado el atajo de la tecla C para evitar activaciones accidentales
 end)
