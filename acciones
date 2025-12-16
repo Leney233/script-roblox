@@ -7,6 +7,7 @@ local player = Players.LocalPlayer
 local mouse = player:GetMouse()
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- Variables generales
 local currentTrack = nil 
 local currentAnimId = nil 
 
@@ -16,18 +17,17 @@ local lastAppliedTransparency = 0
 local originalTransparencies = {} 
 local mapLoaded = false 
 
+-- Variables de Target y Bring
 local targetPlayer = nil 
 local isTargeting = false 
 local bringAllEnabled = false 
 
-local hitboxEnabled = false
-local draggingHbSlider = false
-local minHitboxSize = 2   
-local maxHitboxSize = 200 
-local currentHitboxSize = minHitboxSize 
-local TargetList = {}
+-- Variables de ESCANEO DE ITEMS (Reemplaza Hitbox)
+local itemScanEnabled = false
+local HIGHLIGHT_NAME = "ESP_Highlight"
+local TEXT_TAG_NAME = "ESP_TextTag"
 
--- IDs
+-- IDs de Emotes
 local ID_TORNADO = 135373056067761
 local ID_SENTARSE = 71112973269174
 local ID_BERRINCHE = 86339673982616
@@ -50,6 +50,7 @@ task.spawn(function()
 	end
 end)
 
+-- Guardado de estado del mapa
 local function saveOriginalState(part)
 	if part:IsA("BasePart") or part:IsA("Decal") or part:IsA("Texture") then
 		if originalTransparencies[part] == nil then
@@ -69,7 +70,7 @@ end)
 
 -- --- INTERFAZ GRÁFICA (GUI) ---
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "System_Final_V38_Fixed"
+screenGui.Name = "System_Merged_Scanner"
 screenGui.ResetOnSpawn = false
 screenGui.DisplayOrder = 100
 screenGui.IgnoreGuiInset = true 
@@ -172,55 +173,13 @@ valueLabel.TextSize = 16
 valueLabel.ZIndex = 20
 valueLabel.Parent = sliderBarBackground
 
-local hbSliderBg = Instance.new("Frame")
-hbSliderBg.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-hbSliderBg.BackgroundTransparency = 0.2
-hbSliderBg.BorderSizePixel = 0
-hbSliderBg.Position = UDim2.new(0.5, -150, 0.82, -20) 
-hbSliderBg.Size = UDim2.new(0, 300, 0, 12)
-hbSliderBg.Visible = false 
-hbSliderBg.ZIndex = 20
-hbSliderBg.Parent = screenGui
-local hbBgC = Instance.new("UICorner"); hbBgC.CornerRadius = UDim.new(1, 0); hbBgC.Parent = hbSliderBg
-
-local hbSliderFill = Instance.new("Frame")
-hbSliderFill.BackgroundColor3 = Color3.fromRGB(0, 200, 255) 
-hbSliderFill.BorderSizePixel = 0
-hbSliderFill.Size = UDim2.new(0, 0, 1, 0) 
-hbSliderFill.ZIndex = 21
-hbSliderFill.Parent = hbSliderBg
-local hbFilC = Instance.new("UICorner"); hbFilC.CornerRadius = UDim.new(1, 0); hbFilC.Parent = hbSliderFill
-
-local hbKnob = Instance.new("ImageButton")
-hbKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-hbKnob.BorderSizePixel = 0
-hbKnob.Position = UDim2.new(0, -10, 0.5, -10)
-hbKnob.Size = UDim2.new(0, 20, 0, 20)
-hbKnob.ZIndex = 22
-hbKnob.Parent = hbSliderBg
-local hbKC = Instance.new("UICorner"); hbKC.CornerRadius = UDim.new(1, 0); hbKC.Parent = hbKnob
-
-local hbLabel = Instance.new("TextLabel")
-hbLabel.BackgroundTransparency = 1
-hbLabel.Position = UDim2.new(0.5, 0, -2.5, 0)
-hbLabel.Size = UDim2.new(1, 0, 1, 0)
-hbLabel.Font = Enum.Font.GothamBold
-hbLabel.Text = "Tamaño Hitbox: " .. minHitboxSize
-hbLabel.TextColor3 = Color3.new(0.6, 1, 1)
-hbLabel.TextStrokeTransparency = 0.5
-hbLabel.TextSize = 16
-hbLabel.ZIndex = 20
-hbLabel.Parent = hbSliderBg
-
--- FUNCIONES DE LÓGICA
+-- FUNCIONES DE LÓGICA GENERAL
 local function findTarget(text)
 	text = text:lower()
-	-- FIX: Evitar búsqueda si el texto es vacío
 	if text:gsub(" ", "") == "" then return nil end
 	
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p ~= player then
-			-- FIX: Asegurar que comparamos algo válido
 			if #text > 0 and (p.Name:lower():sub(1, #text) == text or p.DisplayName:lower():sub(1, #text) == text) then
 				return p
 			end
@@ -248,10 +207,131 @@ local function restoreAllPhysics()
 	end
 end
 
+-- ==========================================
+-- FUNCIONES LOGICA ESCANEO DE ITEMS (NUEVO)
+-- ==========================================
+
+local function getColorFromName(name)
+	local sum = 0
+	for i = 1, #name do sum = sum + string.byte(name, i) end
+	return Color3.fromHSV((sum % 255) / 255, 1, 1)
+end
+
+local function clearItemVisuals(character)
+	if character:FindFirstChild(HIGHLIGHT_NAME) then
+		character[HIGHLIGHT_NAME]:Destroy()
+	end
+	local head = character:FindFirstChild("Head")
+	if head and head:FindFirstChild(TEXT_TAG_NAME) then
+		head[TEXT_TAG_NAME]:Destroy()
+	end
+end
+
+local function removeAllItemVisuals()
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p.Character then clearItemVisuals(p.Character) end
+	end
+end
+
+local function updateItemVisuals(character, color, textContent)
+	-- Highlight
+	local highlight = character:FindFirstChild(HIGHLIGHT_NAME)
+	if not highlight then
+		highlight = Instance.new("Highlight")
+		highlight.Name = HIGHLIGHT_NAME
+		highlight.Adornee = character
+		highlight.FillTransparency = 1
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Parent = character
+	end
+	highlight.OutlineColor = color
+
+	-- Texto
+	local head = character:FindFirstChild("Head")
+	if head then
+		local bg = head:FindFirstChild(TEXT_TAG_NAME)
+		if not bg then
+			bg = Instance.new("BillboardGui")
+			bg.Name = TEXT_TAG_NAME
+			bg.Adornee = head
+			bg.Size = UDim2.new(0, 200, 0, 50)
+			bg.StudsOffset = Vector3.new(0, 3.5, 0)
+			bg.AlwaysOnTop = true
+			bg.Parent = head
+			
+			local txt = Instance.new("TextLabel")
+			txt.Parent = bg
+			txt.Size = UDim2.new(1, 0, 1, 0)
+			txt.BackgroundTransparency = 1
+			txt.TextStrokeTransparency = 0
+			txt.Font = Enum.Font.GothamBold
+			txt.TextSize = 15
+		end
+		
+		local label = bg:FindFirstChildOfClass("TextLabel")
+		if label then
+			label.Text = textContent
+			label.TextColor3 = color
+		end
+	end
+end
+
+local function checkInventories()
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
+			local toolCount = 0
+			local toolName = nil
+			
+			-- Revisar Mochila
+			local backpack = p:FindFirstChild("Backpack")
+			if backpack then
+				for _, item in ipairs(backpack:GetChildren()) do
+					if item:IsA("Tool") then
+						toolCount = toolCount + 1
+						if not toolName then toolName = item.Name end
+					end
+				end
+			end
+			
+			-- Revisar Equipado
+			local equipped = p.Character:FindFirstChildWhichIsA("Tool")
+			if equipped then
+				toolCount = toolCount + 1
+				toolName = equipped.Name 
+			end
+			
+			-- Aplicar visuales
+			if toolCount > 0 then
+				local finalColor
+				local finalText
+				
+				if toolCount > 2 then
+					finalColor = Color3.new(1, 1, 1)
+					finalText = toolName .. " (+" .. (toolCount - 1) .. ")"
+				else
+					finalColor = getColorFromName(toolName)
+					if toolCount == 2 then
+						finalText = toolName .. " (+1)"
+					else
+						finalText = toolName
+					end
+				end
+				updateItemVisuals(p.Character, finalColor, finalText)
+			else
+				clearItemVisuals(p.Character)
+			end
+		end
+	end
+end
+
+-- ==========================================
+-- FIN LOGICA ESCANEO
+-- ==========================================
+
 -- EVENTO DEL TEXTBOX (ENTER)
 targetBox.FocusLost:Connect(function(enterPressed)
 	if enterPressed then
-		-- FIX: Verificación extra de texto vacío
 		if targetBox.Text:gsub(" ", "") == "" then
 			targetBox.Text = ""
 			return
@@ -279,6 +359,7 @@ end)
 
 -- BUCLE PRINCIPAL (RenderStepped)
 RunService.RenderStepped:Connect(function()
+	-- Lógica Slider Transparencia
 	if draggingSlider then
 		local barPos = sliderBarBackground.AbsolutePosition
 		local barSize = sliderBarBackground.AbsoluteSize
@@ -290,19 +371,7 @@ RunService.RenderStepped:Connect(function()
 		valueLabel.Text = "Transparencia Mapa: " .. math.floor(percentage * 100) .. "%"
 	end
 	
-	if draggingHbSlider then
-		local barPos = hbSliderBg.AbsolutePosition
-		local barSize = hbSliderBg.AbsoluteSize
-		-- CORREGIDO: mouseX no existe, debe ser mouse.X
-		local relativeX = math.clamp(mouse.X - barPos.X, 0, barSize.X)
-		local percentage = relativeX / barSize.X
-		local newSize = minHitboxSize + ((maxHitboxSize - minHitboxSize) * percentage)
-		currentHitboxSize = newSize
-		hbKnob.Position = UDim2.new(percentage, -10, 0.5, -10)
-		hbSliderFill.Size = UDim2.new(percentage, 0, 1, 0)
-		hbLabel.Text = "Tamaño Hitbox: " .. math.floor(newSize)
-	end
-	
+	-- Aplicar Transparencia
 	if mapLoaded and math.abs(currentTransparency - lastAppliedTransparency) > 0.01 then
 		lastAppliedTransparency = currentTransparency
 		for part, original in pairs(originalTransparencies) do
@@ -316,6 +385,7 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 	
+	-- Lógica Target
 	if isTargeting and targetPlayer and targetPlayer.Character then
 		local root = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
 		local myChar = player.Character
@@ -345,6 +415,7 @@ RunService.RenderStepped:Connect(function()
 		targetBox.Text = "Jugador salió"
 	end
 
+	-- Lógica Bring All
 	if bringAllEnabled then
 		local myChar = player.Character
 		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
@@ -375,33 +446,9 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 	
-	if hitboxEnabled then
-		local targetVector = Vector3.new(currentHitboxSize, currentHitboxSize, currentHitboxSize)
-		for _, p in ipairs(Players:GetPlayers()) do
-			if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-				local rootPart = p.Character.HumanoidRootPart
-				
-				rootPart.Size = targetVector
-				rootPart.Transparency = 0.5 
-				rootPart.BrickColor = BrickColor.new("Really blue")
-				rootPart.Material = Enum.Material.Plastic 
-				rootPart.CanCollide = false 
-				rootPart.CanTouch = true    
-				rootPart.CanQuery = true    
-				rootPart.Massless = true    
-				
-				local box = rootPart:FindFirstChild("HitboxVisualizer")
-				if not box then
-					box = Instance.new("SelectionBox")
-					box.Name = "HitboxVisualizer"
-					box.Adornee = rootPart
-					box.Parent = rootPart
-				end
-				box.Color3 = Color3.fromRGB(0, 170, 255)
-				box.LineThickness = 0.05
-				box.SurfaceTransparency = 1 
-			end
-		end
+	-- LOGICA DE ESCANEO DE ITEMS (Integrada aqui)
+	if itemScanEnabled then
+		checkInventories()
 	end
 end)
 
@@ -425,8 +472,10 @@ local function killScript()
 	stopCurrent()
 	bringAllEnabled = false
 	isTargeting = false
-	hitboxEnabled = false
+	itemScanEnabled = false
+	
 	restoreAllPhysics()
+	removeAllItemVisuals() -- Limpiar ESP de items al cerrar
 	
 	if mapLoaded then
 		for part, original in pairs(originalTransparencies) do
@@ -462,22 +511,19 @@ createButton("TRANSPARENCIA MAPA", Color3.fromRGB(120, 40, 200), 50, function()
 	sliderBarBackground.Visible = not sliderBarBackground.Visible
 end)
 
-local hitboxBtn = createButton("HITBOX (OFF)", Color3.fromRGB(0, 180, 200), 55, function()
-	if not hitboxEnabled then
-		hitboxEnabled = true
-		hbSliderBg.Visible = true
-	else
-		hitboxEnabled = false
-		hbSliderBg.Visible = false
-		restoreAllPhysics()
+-- --- BOTÓN REEMPLAZADO: ESCANEO DE ITEMS ---
+local itemScanBtn = createButton("ESCANEO ITEMS (OFF)", Color3.fromRGB(0, 150, 200), 55, function()
+	itemScanEnabled = not itemScanEnabled
+	if not itemScanEnabled then
+		removeAllItemVisuals()
 	end
 end)
+-- --------------------------------------------
 
--- DEBOUNCE AÑADIDO AQUI
 local dbTarget = false
 local targetBtn = createButton("TARGET HITBOX", Color3.fromRGB(255, 100, 0), 60, function()
 	if bringAllEnabled then return end 
-	if dbTarget then return end -- Si está en enfriamiento, no hacer nada
+	if dbTarget then return end 
 	dbTarget = true
 	
 	targetFrame.Visible = not targetFrame.Visible
@@ -490,7 +536,7 @@ local targetBtn = createButton("TARGET HITBOX", Color3.fromRGB(255, 100, 0), 60,
 		targetBox:CaptureFocus()
 	end
 	
-	task.wait(0.5) -- Esperar 0.5 segundos antes de permitir click de nuevo
+	task.wait(0.5) 
 	dbTarget = false
 end)
 
@@ -504,15 +550,18 @@ local bringAllBtn = createButton("BRING ALL (OFF)", Color3.fromRGB(160, 32, 240)
 	end
 end)
 
+-- Actualización visual de los botones
 RunService.RenderStepped:Connect(function()
-	if hitboxEnabled then
-		hitboxBtn.Text = "HITBOX (ON)"
-		hitboxBtn.BackgroundColor3 = Color3.fromRGB(0, 220, 150)
+	-- Actualizar boton de items
+	if itemScanEnabled then
+		itemScanBtn.Text = "ESCANEO ITEMS (ON)"
+		itemScanBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
 	else
-		hitboxBtn.Text = "HITBOX (OFF)"
-		hitboxBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 200) 
+		itemScanBtn.Text = "ESCANEO ITEMS (OFF)"
+		itemScanBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
 	end
 
+	-- Actualizar Target
 	if isTargeting then
 		targetBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0) 
 		targetBtn.Text = "ATACANDO: " .. (targetPlayer and targetPlayer.Name or "...")
@@ -521,6 +570,7 @@ RunService.RenderStepped:Connect(function()
 		targetBtn.Text = "TARGET HITBOX"
 	end
 	
+	-- Actualizar Bring All
 	if bringAllEnabled then
 		bringAllBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
 		bringAllBtn.Text = "BRING ALL (ON)"
@@ -540,12 +590,10 @@ toggleBtn.MouseButton1Click:Connect(function()
 end)
 
 sliderKnob.MouseButton1Down:Connect(function() draggingSlider = true end)
-hbKnob.MouseButton1Down:Connect(function() draggingHbSlider = true end)
 
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then 
 		draggingSlider = false
-		draggingHbSlider = false
 	end
 end)
 
@@ -558,6 +606,4 @@ UserInputService.InputBegan:Connect(function(input, gp)
 	elseif input.KeyCode == Enum.KeyCode.J then toggleAnim(ID_CUTE)
 	elseif input.KeyCode == Enum.KeyCode.K then toggleAnim(ID_INVISIBLE)
 	end
-	
-	-- Se ha eliminado el atajo de la tecla C para evitar activaciones accidentales
 end)
